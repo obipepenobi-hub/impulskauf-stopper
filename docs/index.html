@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Impulskauf-Stopper</title>
+<style>
+  :root {
+    --background: #e8dcc6;
+    --surface: #f5ead8;
+    --primary: #c67139;
+    --on-primary: #ffffff;
+    --secondary: #7a8a5e;
+    --on-background: #402310;
+    --outline: #474238;
+    --track: #dcd3c4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--background);
+    color: var(--on-background);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 32px 16px;
+  }
+  .card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--surface);
+    border-radius: 28px;
+    padding: 32px 28px;
+    box-shadow: 0 10px 30px rgba(64, 35, 16, 0.12);
+  }
+  .icon {
+    width: 84px;
+    height: 84px;
+    border-radius: 22px;
+    background: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+  }
+  .icon svg { width: 52px; height: 52px; }
+  h1 {
+    font-size: 24px;
+    text-align: center;
+    margin: 0 0 4px;
+  }
+  .tagline {
+    text-align: center;
+    color: var(--primary);
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .meta {
+    text-align: center;
+    font-size: 13px;
+    opacity: 0.65;
+    margin: 0 0 24px;
+  }
+  .stats {
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    margin-bottom: 24px;
+  }
+  .stat { text-align: center; }
+  .stat .value { font-weight: 700; font-size: 15px; }
+  .stat .label { font-size: 11px; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.02em; }
+  .cta {
+    display: block;
+    width: 100%;
+    border: none;
+    border-radius: 999px;
+    background: var(--primary);
+    color: var(--on-primary);
+    font-size: 16px;
+    font-weight: 600;
+    padding: 16px;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+  }
+  .cta:active { opacity: 0.85; }
+  .cta[data-state="loading"] { opacity: 0.6; pointer-events: none; }
+  .progress-wrap {
+    display: none;
+    margin-top: 16px;
+  }
+  .progress-wrap.visible { display: block; }
+  .progress-track {
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--track);
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--primary);
+    border-radius: 999px;
+    transition: width 2.4s ease-out;
+  }
+  .progress-label {
+    font-size: 13px;
+    margin-top: 8px;
+    opacity: 0.8;
+    text-align: center;
+  }
+  .steps {
+    display: none;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--track);
+  }
+  .steps.visible { display: block; }
+  .step {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+    font-size: 14px;
+  }
+  .step:last-child { margin-bottom: 0; }
+  .step .n {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--primary);
+    color: var(--on-primary);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .about {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--track);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .about h2 { font-size: 14px; margin: 0 0 8px; }
+  footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 12px;
+    opacity: 0.6;
+  }
+  footer a { color: var(--on-background); }
+  .error {
+    display: none;
+    margin-top: 16px;
+    font-size: 13px;
+    color: #a13a2c;
+    text-align: center;
+  }
+  .error.visible { display: block; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">
+      <svg viewBox="0 0 108 108" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#F6A06B" d="M54,36 C71,36 82,47 82,60 C82,68 78,74 72,78 L72,86 L62,86 L62,80 C59.4,80.6 56.7,81 54,81 C51.3,81 48.6,80.6 46,80 L46,86 L36,86 L36,78 C30,74 26,68 26,60 C26,47 37,36 54,36 Z"/>
+        <path fill="#FFFFFF" d="M44,56 L64,56 A10,7 0 0 1 54,66 A10,7 0 0 1 44,56 Z" opacity="0.9"/>
+      </svg>
+    </div>
+    <h1>Impulskauf-Stopper</h1>
+    <p class="tagline">Ruhiger Sparcoach</p>
+    <p class="meta">Enthält keine Werbung · Keine In-App-Käufe · Kostenlos</p>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="value" id="stat-version">–</div>
+        <div class="label">Version</div>
+      </div>
+      <div class="stat">
+        <div class="value" id="stat-size">–</div>
+        <div class="label">Downloadgröße</div>
+      </div>
+      <div class="stat">
+        <div class="value">Android 8+</div>
+        <div class="label">Voraussetzung</div>
+      </div>
+    </div>
+
+    <a class="cta" id="install-btn" href="#">Installieren</a>
+    <div class="error" id="error-box">Release konnte nicht geladen werden. <a href="https://github.com/obipepenobi-hub/impulskauf-stopper/releases/latest">Direkt auf GitHub ansehen</a>.</div>
+
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-label">Download läuft — schau in deine Benachrichtigungsleiste</div>
+    </div>
+
+    <div class="steps" id="steps">
+      <div class="step"><div class="n">1</div><div>Benachrichtigung antippen, sobald der Download fertig ist.</div></div>
+      <div class="step"><div class="n">2</div><div>Beim ersten Mal fragt Android nach der Erlaubnis, Apps aus dieser Quelle zu installieren — einmalig bestätigen.</div></div>
+      <div class="step"><div class="n">3</div><div>„Installieren" antippen, dann „Öffnen" — fertig.</div></div>
+    </div>
+
+    <div class="about">
+      <h2>Über diese App</h2>
+      <p>Trag ein, was du kaufen willst — die App rechnet den Preis in Arbeitsstunden um und lässt den Wunsch erst reifen. Nach der Wartezeit entscheidest du in Ruhe. Was du nicht kaufst, wandert ins Sparschwein.</p>
+    </div>
+  </div>
+
+  <footer>
+    Updates kommen direkt über <a href="https://github.com/obipepenobi-hub/impulskauf-stopper/releases">GitHub Releases</a> — kein Play Store nötig.
+  </footer>
+
+<script>
+(function () {
+  var OWNER = "obipepenobi-hub";
+  var REPO = "impulskauf-stopper";
+  var btn = document.getElementById("install-btn");
+  var errorBox = document.getElementById("error-box");
+  var progressWrap = document.getElementById("progress-wrap");
+  var progressFill = document.getElementById("progress-fill");
+  var steps = document.getElementById("steps");
+  var apkUrl = null;
+
+  function formatSize(bytes) {
+    return (bytes / (1024 * 1024)).toFixed(1).replace(".", ",") + " MB";
+  }
+
+  fetch("https://api.github.com/repos/" + OWNER + "/" + REPO + "/releases/latest")
+    .then(function (r) { if (!r.ok) throw new Error("no release"); return r.json(); })
+    .then(function (release) {
+      var asset = (release.assets || []).find(function (a) { return a.name.endsWith(".apk"); });
+      if (!asset) throw new Error("no apk asset");
+      apkUrl = asset.browser_download_url;
+      document.getElementById("stat-version").textContent = release.tag_name.replace(/^v/, "");
+      document.getElementById("stat-size").textContent = formatSize(asset.size);
+      btn.href = apkUrl;
+    })
+    .catch(function () {
+      errorBox.classList.add("visible");
+      btn.href = "https://github.com/" + OWNER + "/" + REPO + "/releases/latest";
+    });
+
+  btn.addEventListener("click", function () {
+    if (!apkUrl) return; // fall through to the GitHub releases link
+    progressWrap.classList.add("visible");
+    requestAnimationFrame(function () {
+      progressFill.style.width = "100%";
+    });
+    setTimeout(function () {
+      steps.classList.add("visible");
+    }, 2600);
+  });
+})();
+</script>
+</body>
+</html>
