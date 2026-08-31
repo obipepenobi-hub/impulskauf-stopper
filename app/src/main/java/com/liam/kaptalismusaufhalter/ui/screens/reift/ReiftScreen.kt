@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -26,10 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.liam.kaptalismusaufhalter.data.Wish
-import java.text.NumberFormat
-import java.util.Locale
-import java.util.concurrent.TimeUnit
+import com.liam.kaptalismusaufhalter.ui.components.RipeningCard
 
 @Composable
 fun ReiftScreen(
@@ -105,42 +101,3 @@ private fun QuickAddCard(onAdd: (String, Double) -> Unit) {
     }
 }
 
-@Composable
-private fun RipeningCard(wish: Wish, onClick: () -> Unit) {
-    val now = System.currentTimeMillis()
-    val total = (wish.unlockAt - wish.createdAt).coerceAtLeast(1)
-    val elapsed = (now - wish.createdAt).coerceIn(0, total)
-    val progress = elapsed.toFloat() / total.toFloat()
-    val remaining = (wish.unlockAt - now).coerceAtLeast(0)
-
-    Card(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(wish.name, style = MaterialTheme.typography.titleMedium)
-                Text(formatCurrency(wish.price), style = MaterialTheme.typography.titleMedium)
-            }
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.fillMaxWidth()
-            )
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(2.dp))
-            Text(
-                text = if (remaining <= 0) "Bereit" else "Noch ${formatDuration(remaining)}",
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-    }
-}
-
-private fun formatDuration(millis: Long): String {
-    val days = TimeUnit.MILLISECONDS.toDays(millis)
-    val hours = TimeUnit.MILLISECONDS.toHours(millis) % 24
-    return if (days > 0) "${days} Tg ${hours} Std" else "${hours} Std"
-}
-
-private fun formatCurrency(value: Double): String =
-    NumberFormat.getCurrencyInstance(Locale.GERMANY).format(value)
