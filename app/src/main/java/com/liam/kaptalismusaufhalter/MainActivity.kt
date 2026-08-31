@@ -56,6 +56,9 @@ class MainActivity : ComponentActivity() {
                 var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
 
                 LaunchedEffect(Unit) {
+                    // Picks up a download that finished while we were backgrounded/killed and
+                    // whose completion broadcast we therefore missed.
+                    UpdateInstaller.checkPendingDownload(this@MainActivity)
                     updateInfo = UpdateChecker.checkForUpdate(
                         BuildConfig.UPDATE_REPO_OWNER,
                         BuildConfig.UPDATE_REPO_NAME,
