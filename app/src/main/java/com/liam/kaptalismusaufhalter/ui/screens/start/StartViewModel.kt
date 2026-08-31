@@ -19,6 +19,8 @@ data class StartUiState(
     val stage: PiggyStage = currentStage(0.0),
     val nextStage: PiggyStage? = nextStage(0.0),
     val workHours: Double = 0.0,
+    val hourlyWage: Double = 0.0,
+    val skippedCount: Int = 0,
     val ripeningPreview: List<Wish> = emptyList()
 )
 
@@ -28,14 +30,18 @@ class StartViewModel(application: Application) : AndroidViewModel(application) {
 
     val uiState = combine(
         database.piggyBankDao().observeTotal(),
+        database.piggyBankDao().observeCount(),
         database.wishDao().observePendingPreview(3),
         database.settingsDao().observe()
-    ) { total, preview, settings ->
+    ) { total, skippedCount, preview, settings ->
+        val wage = (settings ?: Settings()).hourlyWage
         StartUiState(
             total = total,
             stage = currentStage(total),
             nextStage = nextStage(total),
-            workHours = calcWorkHours(total, (settings ?: Settings()).hourlyWage),
+            workHours = calcWorkHours(total, wage),
+            hourlyWage = wage,
+            skippedCount = skippedCount,
             ripeningPreview = preview
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StartUiState())

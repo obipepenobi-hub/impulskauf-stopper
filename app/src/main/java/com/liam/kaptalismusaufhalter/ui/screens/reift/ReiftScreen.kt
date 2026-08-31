@@ -33,6 +33,7 @@ fun ReiftScreen(
     onWishClick: (Long) -> Unit
 ) {
     val wishes by viewModel.pendingWishes.collectAsState()
+    val hourlyWage by viewModel.hourlyWage.collectAsState()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -56,7 +57,7 @@ fun ReiftScreen(
             }
         } else {
             items(wishes) { wish ->
-                RipeningCard(wish = wish, onClick = { onWishClick(wish.id) })
+                RipeningCard(wish = wish, hourlyWage = hourlyWage, onClick = { onWishClick(wish.id) })
             }
         }
     }

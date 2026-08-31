@@ -5,17 +5,16 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.liam.kaptalismusaufhalter.ImpulskaufApp
 import com.liam.kaptalismusaufhalter.data.PiggyEntryWithWish
-import com.liam.kaptalismusaufhalter.domain.PiggyStage
-import com.liam.kaptalismusaufhalter.domain.currentStage
-import com.liam.kaptalismusaufhalter.domain.nextStage
+import com.liam.kaptalismusaufhalter.data.Settings
+import com.liam.kaptalismusaufhalter.domain.calcWorkHours
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
 data class PiggyBankUiState(
     val total: Double = 0.0,
-    val stage: PiggyStage = currentStage(0.0),
-    val nextStage: PiggyStage? = nextStage(0.0),
+    val workHours: Double = 0.0,
+    val hourlyWage: Double = 0.0,
     val history: List<PiggyEntryWithWish> = emptyList()
 )
 
@@ -24,12 +23,14 @@ class PiggyBankViewModel(application: Application) : AndroidViewModel(applicatio
 
     val uiState = combine(
         database.piggyBankDao().observeTotal(),
-        database.piggyBankDao().observeHistory()
-    ) { total, history ->
+        database.piggyBankDao().observeHistory(),
+        database.settingsDao().observe()
+    ) { total, history, settings ->
+        val wage = (settings ?: Settings()).hourlyWage
         PiggyBankUiState(
             total = total,
-            stage = currentStage(total),
-            nextStage = nextStage(total),
+            workHours = calcWorkHours(total, wage),
+            hourlyWage = wage,
             history = history
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PiggyBankUiState())

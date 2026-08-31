@@ -14,9 +14,10 @@ data class PiggyStage(val threshold: Double, val name: String)
 
 val PIGGY_STAGES = listOf(
     PiggyStage(0.0, "Ferkel"),
-    PiggyStage(150.0, "Sparschwein"),
-    PiggyStage(300.0, "Prachtsau"),
-    PiggyStage(500.0, "Goldschwein")
+    PiggyStage(100.0, "Sparferkel"),
+    PiggyStage(250.0, "Prachtsau"),
+    PiggyStage(500.0, "Goldschwein"),
+    PiggyStage(1000.0, "Zuchtlegende")
 )
 
 fun currentStage(total: Double): PiggyStage = PIGGY_STAGES.last { total >= it.threshold }

@@ -20,6 +20,9 @@ interface PiggyBankDao {
     @Query("SELECT COALESCE(SUM(amount), 0.0) FROM PiggyBankEntry")
     fun observeTotal(): Flow<Double>
 
+    @Query("SELECT COUNT(*) FROM PiggyBankEntry")
+    fun observeCount(): Flow<Int>
+
     @Query(
         """
         SELECT PiggyBankEntry.id AS id, amount, timestamp, Wish.name AS wishName

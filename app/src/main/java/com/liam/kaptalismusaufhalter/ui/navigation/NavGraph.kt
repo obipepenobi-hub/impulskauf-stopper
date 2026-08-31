@@ -15,10 +15,14 @@ import com.liam.kaptalismusaufhalter.ui.screens.settings.SettingsScreen
 import com.liam.kaptalismusaufhalter.ui.screens.start.StartScreen
 
 @Composable
-fun AppNavGraph(navController: NavHostController) {
+fun AppNavGraph(navController: NavHostController, onSettingsClick: () -> Unit) {
     NavHost(navController = navController, startDestination = Destination.Start.route) {
         composable(Destination.Start.route) {
-            StartScreen(onWishClick = { id -> navController.navigate(Destination.Decision.route(id)) })
+            StartScreen(
+                onWishClick = { id -> navController.navigate(Destination.Decision.route(id)) },
+                onSeeAllClick = { navController.navigate(Destination.Reift.route) },
+                onSettingsClick = onSettingsClick
+            )
         }
         composable(Destination.Reift.route) {
             ReiftScreen(onWishClick = { id -> navController.navigate(Destination.Decision.route(id)) })
