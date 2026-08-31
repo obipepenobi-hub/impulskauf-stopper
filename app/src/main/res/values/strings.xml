@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Impulskauf-Stopper</string>
+
+    <string name="nav_start">Start</string>
+    <string name="nav_reift">Reift</string>
+    <string name="nav_new">Neu</string>
+    <string name="nav_piggy">Schwein</string>
+    <string name="nav_friends">Freunde</string>
+
+    <string name="settings_title">Einstellungen</string>
+    <string name="settings_hourly_wage">Stundenlohn (netto)</string>
+    <string name="settings_wait_tiers">Wartezeit-Staffel</string>
+
+    <string name="new_wish_title">Neuer Wunsch</string>
+    <string name="new_wish_name">Was möchtest du kaufen?</string>
+    <string name="new_wish_price">Preis (€)</string>
+    <string name="new_wish_link">Link (optional)</string>
+    <string name="new_wish_work_hours">Das sind %s Arbeitsstunden für dich</string>
+    <string name="new_wish_wait_info">Wartezeit bis zur Entscheidung: %s</string>
+    <string name="new_wish_save">Wunsch einreifen lassen</string>
+
+    <string name="decision_bought">Gekauft</string>
+    <string name="decision_skipped">Doch nicht gekauft</string>
+    <string name="decision_ready_title">Zeit für eine Entscheidung</string>
+
+    <string name="notification_channel_name">Impuls-Erinnerungen</string>
+    <string name="notification_channel_desc">Benachrichtigt dich, wenn ein Wunsch ausgereift ist</string>
+    <string name="notification_title">%s ist bereit</string>
+    <string name="notification_text">Hast du es noch gekauft, oder war es nur ein Impuls?</string>
+
+    <string name="update_available_title">Update verfügbar</string>
+    <string name="update_available_body">Version %s ist auf GitHub verfügbar.</string>
+    <string name="update_download">Herunterladen</string>
+    <string name="update_later">Später</string>
+    <string name="update_installing">Update wird heruntergeladen …</string>
+
+    <string name="friends_placeholder_title">Kein Wettkampf — nur Gesellschaft beim Nichtkaufen</string>
+    <string name="friends_placeholder_body">Der Gruppenvergleich mit Freunden kommt in einer späteren Version. Sobald du einer Gruppe beitrittst, siehst du hier die gemeinsame Rangliste.</string>
+</resources>

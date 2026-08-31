@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- piggy body -->
+    <path
+        android:fillColor="#C67139"
+        android:pathData="M54,36 C71,36 82,47 82,60 C82,68 78,74 72,78 L72,86 L62,86 L62,80 C59.4,80.6 56.7,81 54,81 C51.3,81 48.6,80.6 46,80 L46,86 L36,86 L36,78 C30,74 26,68 26,60 C26,47 37,36 54,36 Z" />
+    <!-- ear -->
+    <path
+        android:fillColor="#A85A28"
+        android:pathData="M40,38 L48,32 L47,42 Z" />
+    <path
+        android:fillColor="#A85A28"
+        android:pathData="M68,38 L60,32 L61,42 Z" />
+    <!-- snout -->
+    <path
+        android:fillColor="#F6A06B"
+        android:pathData="M44,56 L64,56 A10,7 0 0 1 54,66 A10,7 0 0 1 44,56 Z" />
+    <path android:fillColor="#8C491A" android:pathData="M50,59 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+    <path android:fillColor="#8C491A" android:pathData="M58,59 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+    <!-- eyes -->
+    <path android:fillColor="#402310" android:pathData="M42,52 m-2.5,0 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0" />
+    <path android:fillColor="#402310" android:pathData="M66,52 m-2.5,0 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0" />
+    <!-- coin slot -->
+    <path
+        android:fillColor="#8C491A"
+        android:pathData="M50,40 h8 v3 h-8 z" />
+</vector>
