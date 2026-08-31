@@ -179,7 +179,7 @@ fun StartScreen(
             ) {
                 Text("Reift gerade", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Alle ${state.ripeningPreview.size}",
+                    "Alle ${state.pendingCount}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = ColorAccent,
                     fontWeight = FontWeight.SemiBold,
@@ -200,7 +200,9 @@ fun StartScreen(
             }
         } else {
             items(ripeningNotReady) { wish ->
-                RipeningCard(wish = wish, hourlyWage = state.hourlyWage, onClick = { onWishClick(wish.id) })
+                // Not ready yet - tapping mirrors the design's behavior of landing on the Reift list,
+                // not the decision screen (which only opens for wishes whose wait time is up).
+                RipeningCard(wish = wish, hourlyWage = state.hourlyWage, onClick = onSeeAllClick)
             }
         }
 

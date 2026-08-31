@@ -29,6 +29,12 @@ val ColorNeutral400 = Color(0xFFC0B6A5)
 val ColorNeutral600 = Color(0xFF82796A)
 val ColorNeutral700 = Color(0xFF645C50)
 
+// Dark Entscheidung screen only - a separate token set in the design, not the shared theme.
+val ColorDecisionBg = Color(0xFF272E1B)
+val ColorDecisionText = Color(0xFFF2F5E9)
+val ColorDecisionText300 = Color(0xFFCCDBB2)
+val ColorDecisionText400 = Color(0xFFAEBF92)
+
 // Legacy aliases kept so existing call sites keep compiling; prefer the ColorXxx tokens above.
 val Background = ColorBg
 val Surface = ColorSurface

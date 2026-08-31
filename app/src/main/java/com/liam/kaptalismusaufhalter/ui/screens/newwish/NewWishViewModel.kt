@@ -29,7 +29,8 @@ class NewWishViewModel(application: Application) : AndroidViewModel(application)
 
     fun workHoursFor(price: Double): Double = calcWorkHours(price, settings.value.hourlyWage)
 
-    fun waitHoursFor(price: Double): Int = calcWaitHours(price, settings.value.waitTimeConfig.toWaitTiers())
+    fun waitHoursFor(price: Double): Int =
+        calcWaitHours(price, settings.value.waitTimeConfig.toWaitTiers(), settings.value.strictnessEnum.factor)
 
     fun save(name: String, price: Double, linkUrl: String?) {
         viewModelScope.launch {

@@ -1,31 +1,57 @@
 package com.liam.kaptalismusaufhalter.ui.screens.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.liam.kaptalismusaufhalter.BuildConfig
+import com.liam.kaptalismusaufhalter.data.Strictness
 import com.liam.kaptalismusaufhalter.data.toWaitTiers
+import com.liam.kaptalismusaufhalter.domain.PIGGY_STAGES
+import com.liam.kaptalismusaufhalter.domain.calcWaitHours
+import com.liam.kaptalismusaufhalter.ui.components.BackHeader
+import com.liam.kaptalismusaufhalter.ui.components.formatCurrency
+import com.liam.kaptalismusaufhalter.ui.components.formatWaitLabel
+import com.liam.kaptalismusaufhalter.ui.theme.ColorAccent
+import com.liam.kaptalismusaufhalter.ui.theme.ColorAccent100
+import com.liam.kaptalismusaufhalter.ui.theme.ColorAccent700
+import com.liam.kaptalismusaufhalter.ui.theme.ColorBg
+import com.liam.kaptalismusaufhalter.ui.theme.ColorNeutral400
+import com.liam.kaptalismusaufhalter.ui.theme.ColorNeutral600
+import com.liam.kaptalismusaufhalter.ui.theme.ColorNeutral700
+import com.liam.kaptalismusaufhalter.ui.theme.ColorSurface
+import com.liam.kaptalismusaufhalter.ui.theme.ColorText
+import com.liam.kaptalismusaufhalter.ui.theme.HeadingFont
 import com.liam.kaptalismusaufhalter.update.UpdateAvailableDialog
 import com.liam.kaptalismusaufhalter.update.UpdateChecker
 import com.liam.kaptalismusaufhalter.update.UpdateInfo
@@ -33,15 +59,28 @@ import com.liam.kaptalismusaufhalter.update.UpdateInstaller
 import kotlinx.coroutines.launch
 
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
-    val settings by viewModel.settings.collectAsState()
+fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = viewModel()) {
+    val uiState by viewModel.uiState.collectAsState()
+    val settings = uiState.settings
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var wageText by remember(settings.hourlyWage) { mutableStateOf(settings.hourlyWage.toString()) }
+    // Seeded once from the DB value, then left alone - keying this on settings.hourlyWage would
+    // reset the field (and the cursor) on every keystroke, since typing a valid value saves it,
+    // which changes settings.hourlyWage right back.
+    var wageText by remember { mutableStateOf("") }
+    var wageInitialized by remember { mutableStateOf(false) }
+    LaunchedEffect(settings.hourlyWage) {
+        if (!wageInitialized) {
+            wageText = settings.hourlyWage.toString().replace(".", ",")
+            wageInitialized = true
+        }
+    }
     var checking by remember { mutableStateOf(false) }
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
     var checkedOnce by remember { mutableStateOf(false) }
+
+    val wage = wageText.replace(",", ".").toDoubleOrNull()?.takeIf { it > 0 } ?: settings.hourlyWage
 
     updateInfo?.let { info ->
         UpdateAvailableDialog(
@@ -54,69 +93,218 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
         )
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ColorBg),
+        contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Text("Einstellungen", style = MaterialTheme.typography.headlineMedium)
+        item { BackHeader("Einstellungen", onBack) }
 
-        OutlinedTextField(
-            value = wageText,
-            onValueChange = { wageText = it },
-            label = { Text("Stundenlohn (netto, €)") },
-            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedButton(
-            onClick = {
-                wageText.replace(",", ".").toDoubleOrNull()?.let { viewModel.updateHourlyWage(it) }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Stundenlohn speichern")
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                FieldLabel("Dein Stundenlohn (netto)")
+                Box {
+                    PillInput(
+                        value = wageText,
+                        onValueChange = {
+                            wageText = it
+                            it.replace(",", ".").toDoubleOrNull()?.takeIf { v -> v > 0 }?.let(viewModel::updateHourlyWage)
+                        },
+                        keyboardType = KeyboardType.Decimal,
+                        trailingText = "€ / Std"
+                    )
+                }
+                Text(
+                    "Danach rechnet die App jeden Preis um. Aktuell: 100 € = ${"%.1f".format(100.0 / wage).replace(".", ",")} Arbeitsstunden.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ColorNeutral700
+                )
+            }
         }
 
-        HorizontalDivider()
-
-        Text("Wartezeit-Staffel", style = MaterialTheme.typography.titleMedium)
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                settings.waitTimeConfig.toWaitTiers().forEach { tier ->
-                    val label = if (tier.maxPrice != null) "bis %.0f €".format(tier.maxPrice) else "darüber"
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(label)
-                        Text("${tier.waitHours} Std")
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                FieldLabel("Wie streng soll die Reifezeit sein?")
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Strictness.entries.forEach { option ->
+                        StrictnessOption(
+                            option = option,
+                            selected = settings.strictnessEnum == option,
+                            onClick = { viewModel.updateStrictness(option) }
+                        )
                     }
                 }
             }
         }
 
-        HorizontalDivider()
-
-        Text("Version ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyMedium)
-        OutlinedButton(
-            onClick = {
-                checking = true
-                scope.launch {
-                    updateInfo = UpdateChecker.checkForUpdate(
-                        BuildConfig.UPDATE_REPO_OWNER,
-                        BuildConfig.UPDATE_REPO_NAME,
-                        BuildConfig.VERSION_NAME
-                    )
-                    checking = false
-                    checkedOnce = true
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ColorSurface, RoundedCornerShape(26.dp))
+                    .padding(18.dp)
+            ) {
+                Text(
+                    "WARTEZEIT-STAFFEL BEI „${settings.strictnessEnum.label}“",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = ColorNeutral600
+                )
+                Column(
+                    modifier = Modifier.padding(top = 13.dp),
+                    verticalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    val tiers = settings.waitTimeConfig.toWaitTiers()
+                    val ranges = listOf(20.0 to "bis 20 €", 50.0 to "20–50 €", 150.0 to "50–150 €", 400.0 to "150–400 €", 401.0 to "über 400 €")
+                    ranges.forEach { (price, label) ->
+                        val hours = calcWaitHours(price, tiers, settings.strictnessEnum.factor)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            Text(label, style = MaterialTheme.typography.bodyMedium, color = ColorNeutral700)
+                            Text(formatWaitLabel(hours), style = TextStyle(fontFamily = HeadingFont, fontSize = 14.sp))
+                        }
+                    }
                 }
-            },
-            enabled = !checking,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(if (checking) "Suche läuft …" else "Nach Updates suchen")
+            }
         }
-        if (checkedOnce && updateInfo == null && !checking) {
-            Text("Du hast die neueste Version.", style = MaterialTheme.typography.bodyMedium)
+
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                FieldLabel("Sparschwein-Stufen")
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    PIGGY_STAGES.forEachIndexed { index, stage ->
+                        StageRow(
+                            index = index + 1,
+                            name = stage.name,
+                            threshold = stage.threshold,
+                            highlighted = stage == uiState.currentStage
+                        )
+                    }
+                }
+            }
         }
+
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ColorSurface, RoundedCornerShape(26.dp))
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("Version ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyMedium, color = ColorNeutral700)
+                Text(
+                    text = if (checking) "Suche läuft …" else "Nach Updates suchen",
+                    style = TextStyle(fontFamily = HeadingFont, fontSize = 15.sp),
+                    color = ColorAccent,
+                    modifier = Modifier.clickable(enabled = !checking) {
+                        checking = true
+                        scope.launch {
+                            updateInfo = UpdateChecker.checkForUpdate(
+                                BuildConfig.UPDATE_REPO_OWNER,
+                                BuildConfig.UPDATE_REPO_NAME,
+                                BuildConfig.VERSION_NAME
+                            )
+                            checking = false
+                            checkedOnce = true
+                        }
+                    }
+                )
+                if (checkedOnce && updateInfo == null && !checking) {
+                    Text("Du hast die neueste Version.", style = MaterialTheme.typography.bodySmall, color = ColorNeutral600)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FieldLabel(text: String) {
+    Text(text, style = MaterialTheme.typography.bodySmall, color = ColorText.copy(alpha = 0.7f))
+}
+
+@Composable
+private fun PillInput(
+    value: String,
+    onValueChange: (String) -> Unit,
+    keyboardType: KeyboardType,
+    trailingText: String
+) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        androidx.compose.foundation.text.BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = ColorText, fontSize = 16.sp),
+            singleLine = true,
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(ColorAccent),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ColorSurface, RoundedCornerShape(50))
+                .border(1.dp, ColorText.copy(alpha = 0.16f), RoundedCornerShape(50))
+                .padding(start = 14.dp, end = 60.dp, top = 14.dp, bottom = 14.dp)
+        )
+        Text(
+            trailingText,
+            style = MaterialTheme.typography.bodyMedium,
+            color = ColorNeutral600,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 16.dp)
+        )
+    }
+}
+
+@Composable
+private fun StrictnessOption(option: Strictness, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(if (selected) ColorAccent100 else ColorSurface, RoundedCornerShape(50))
+            .border(1.dp, if (selected) ColorAccent else ColorText.copy(alpha = 0.16f), RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(13.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .background(if (selected) ColorAccent else androidx.compose.ui.graphics.Color.Transparent, CircleShape)
+                .border(2.dp, if (selected) ColorAccent else ColorNeutral400, CircleShape)
+        )
+        Column {
+            Text(option.label, style = TextStyle(fontFamily = HeadingFont, fontSize = 15.sp))
+            Text(option.description, style = MaterialTheme.typography.bodySmall, color = ColorNeutral700)
+        }
+    }
+}
+
+@Composable
+private fun StageRow(index: Int, name: String, threshold: Double, highlighted: Boolean) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(if (highlighted) ColorAccent100 else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(22.dp))
+            .padding(horizontal = 15.dp, vertical = 11.dp),
+        horizontalArrangement = Arrangement.spacedBy(13.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "Stufe $index",
+            style = MaterialTheme.typography.bodySmall,
+            color = ColorNeutral600,
+            modifier = Modifier.padding(end = 0.dp)
+        )
+        Text(name, style = TextStyle(fontFamily = HeadingFont, fontSize = 15.sp), modifier = Modifier.weight(1f))
+        Text(
+            "ab ${formatCurrency(threshold)}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (highlighted) ColorAccent700 else ColorNeutral600
+        )
     }
 }

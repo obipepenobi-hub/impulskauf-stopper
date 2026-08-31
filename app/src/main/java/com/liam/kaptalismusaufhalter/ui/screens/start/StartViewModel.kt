@@ -21,6 +21,7 @@ data class StartUiState(
     val workHours: Double = 0.0,
     val hourlyWage: Double = 0.0,
     val skippedCount: Int = 0,
+    val pendingCount: Int = 0,
     val ripeningPreview: List<Wish> = emptyList()
 )
 
@@ -32,8 +33,9 @@ class StartViewModel(application: Application) : AndroidViewModel(application) {
         database.piggyBankDao().observeTotal(),
         database.piggyBankDao().observeCount(),
         database.wishDao().observePendingPreview(3),
+        database.wishDao().observePendingCount(),
         database.settingsDao().observe()
-    ) { total, skippedCount, preview, settings ->
+    ) { total, skippedCount, preview, pendingCount, settings ->
         val wage = (settings ?: Settings()).hourlyWage
         StartUiState(
             total = total,
@@ -42,6 +44,7 @@ class StartViewModel(application: Application) : AndroidViewModel(application) {
             workHours = calcWorkHours(total, wage),
             hourlyWage = wage,
             skippedCount = skippedCount,
+            pendingCount = pendingCount,
             ripeningPreview = preview
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StartUiState())

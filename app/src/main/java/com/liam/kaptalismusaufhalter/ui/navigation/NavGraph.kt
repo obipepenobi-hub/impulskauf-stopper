@@ -28,7 +28,10 @@ fun AppNavGraph(navController: NavHostController, onSettingsClick: () -> Unit) {
             ReiftScreen(onWishClick = { id -> navController.navigate(Destination.Decision.route(id)) })
         }
         composable(Destination.NewWish.route) {
-            NewWishScreen(onSaved = { navController.navigate(Destination.Reift.route) { popUpTo(Destination.Start.route) } })
+            NewWishScreen(
+                onSaved = { navController.navigate(Destination.Reift.route) { popUpTo(Destination.Start.route) } },
+                onBack = { navController.navigate(Destination.Start.route) { popUpTo(Destination.Start.route) } }
+            )
         }
         composable(Destination.PiggyBank.route) {
             PiggyBankScreen()
@@ -37,7 +40,7 @@ fun AppNavGraph(navController: NavHostController, onSettingsClick: () -> Unit) {
             FriendsScreen()
         }
         composable(Destination.Settings.route) {
-            SettingsScreen()
+            SettingsScreen(onBack = { navController.popBackStack() })
         }
         composable(
             route = Destination.Decision.route,

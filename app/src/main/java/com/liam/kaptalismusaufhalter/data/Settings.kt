@@ -39,9 +39,23 @@ fun String.toWaitTiers(): List<WaitTier> {
     }
 }
 
+enum class Strictness(val label: String, val factor: Double, val description: String) {
+    SANFT("Sanft", 0.5, "Halbe Reifezeit — für den Einstieg"),
+    NORMAL("Normal", 1.0, "Empfohlen: 4 Std bis 14 Tage"),
+    STRENG("Streng", 2.0, "Doppelte Reifezeit — für harte Fälle")
+}
+
 @Entity
 data class Settings(
     @PrimaryKey val id: Int = 0,
     val hourlyWage: Double = 15.0,
-    val waitTimeConfig: String = DEFAULT_WAIT_TIERS.toJson()
-)
+    val waitTimeConfig: String = DEFAULT_WAIT_TIERS.toJson(),
+    val strictness: String = Strictness.NORMAL.name
+) {
+    val strictnessEnum: Strictness
+        get() = try {
+            Strictness.valueOf(strictness)
+        } catch (e: IllegalArgumentException) {
+            Strictness.NORMAL
+        }
+}

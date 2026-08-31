@@ -25,4 +25,7 @@ interface WishDao {
 
     @Query("SELECT * FROM Wish WHERE status = 'PENDING' ORDER BY unlockAt ASC LIMIT :limit")
     fun observePendingPreview(limit: Int): Flow<List<Wish>>
+
+    @Query("SELECT COUNT(*) FROM Wish WHERE status = 'PENDING'")
+    fun observePendingCount(): Flow<Int>
 }

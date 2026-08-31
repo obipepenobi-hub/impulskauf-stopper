@@ -114,3 +114,33 @@ fun formatRemaining(millis: Long): String {
 
 fun formatCurrency(value: Double): String =
     NumberFormat.getCurrencyInstance(Locale.GERMANY).format(value)
+
+/** Matches the design's `waitLabel(h)`: hours under a day as "X Stunden", otherwise days. */
+fun formatWaitLabel(hours: Int): String {
+    if (hours < 24) return "$hours Stunden"
+    val days = hours / 24.0
+    val isWhole = days % 1.0 == 0.0
+    val formatted = if (isWhole) "%.0f".format(days) else "%.1f".format(days).replace(".", ",")
+    return formatted + if (days == 1.0) " Tag" else " Tage"
+}
+
+private val WEEKDAY_ABBR = arrayOf("So", "Mo", "Di", "Mi", "Do", "Fr", "Sa")
+private val MONTH_ABBR = arrayOf("Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez")
+
+/** Matches the design's `freeAt(hoursFromNow)`: "Do, 3. Sep · 12:56". */
+fun formatFreeAt(hoursFromNow: Int): String {
+    val target = java.util.Calendar.getInstance().apply { add(java.util.Calendar.HOUR_OF_DAY, hoursFromNow) }
+    val weekday = WEEKDAY_ABBR[target.get(java.util.Calendar.DAY_OF_WEEK) - 1]
+    val day = target.get(java.util.Calendar.DAY_OF_MONTH)
+    val month = MONTH_ABBR[target.get(java.util.Calendar.MONTH)]
+    val hour = target.get(java.util.Calendar.HOUR_OF_DAY)
+    val minute = target.get(java.util.Calendar.MINUTE)
+    return "%s, %d. %s · %02d:%02d".format(weekday, day, month, hour, minute)
+}
+
+/** Matches the design's `liveDayStr`: a friendly work-time-equivalent phrase. */
+fun formatWorkPhrase(hours: Double): String = when {
+    hours >= 8 -> "gut ${"%.1f".format(hours / 8).replace(".", ",")} Arbeitstage"
+    hours >= 1.5 -> "gut ${hours.toInt()} Stunden Arbeit"
+    else -> "etwa ${(hours * 60).toInt()} Minuten Arbeit"
+}

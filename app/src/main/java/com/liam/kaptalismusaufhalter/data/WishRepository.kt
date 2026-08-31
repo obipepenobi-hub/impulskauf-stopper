@@ -11,7 +11,7 @@ class WishRepository(
 ) {
     suspend fun createWish(name: String, price: Double, linkUrl: String? = null): Long {
         val settings = settingsDao.get() ?: Settings()
-        val waitHours = calcWaitHours(price, settings.waitTimeConfig.toWaitTiers())
+        val waitHours = calcWaitHours(price, settings.waitTimeConfig.toWaitTiers(), settings.strictnessEnum.factor)
         val now = System.currentTimeMillis()
         val unlockAt = now + waitHours * 3_600_000L
 

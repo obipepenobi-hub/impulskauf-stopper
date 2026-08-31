@@ -5,9 +5,10 @@ import com.liam.kaptalismusaufhalter.data.WaitTier
 fun calcWorkHours(price: Double, hourlyWage: Double): Double =
     if (hourlyWage > 0) price / hourlyWage else 0.0
 
-fun calcWaitHours(price: Double, config: List<WaitTier>): Int {
+fun calcWaitHours(price: Double, config: List<WaitTier>, factor: Double = 1.0): Int {
     val tier = config.firstOrNull { it.maxPrice == null || price <= it.maxPrice }
-    return tier?.waitHours ?: 336
+    val base = tier?.waitHours ?: 336
+    return Math.round(base * factor).toInt()
 }
 
 data class PiggyStage(val threshold: Double, val name: String)
