@@ -11,6 +11,7 @@ import com.liam.kaptalismusaufhalter.ui.screens.friends.FriendsScreen
 import com.liam.kaptalismusaufhalter.ui.screens.newwish.NewWishScreen
 import com.liam.kaptalismusaufhalter.ui.screens.piggybank.PiggyBankScreen
 import com.liam.kaptalismusaufhalter.ui.screens.reift.ReiftScreen
+import com.liam.kaptalismusaufhalter.ui.screens.settings.ExcludedAppsScreen
 import com.liam.kaptalismusaufhalter.ui.screens.settings.SettingsScreen
 import com.liam.kaptalismusaufhalter.ui.screens.start.StartScreen
 
@@ -40,7 +41,13 @@ fun AppNavGraph(navController: NavHostController, onSettingsClick: () -> Unit) {
             FriendsScreen()
         }
         composable(Destination.Settings.route) {
-            SettingsScreen(onBack = { navController.popBackStack() })
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onExcludedAppsClick = { navController.navigate(Destination.ExcludedApps.route) }
+            )
+        }
+        composable(Destination.ExcludedApps.route) {
+            ExcludedAppsScreen(onBack = { navController.popBackStack() })
         }
         composable(
             route = Destination.Decision.route,

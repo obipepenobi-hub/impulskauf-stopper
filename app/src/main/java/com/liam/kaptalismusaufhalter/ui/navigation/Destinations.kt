@@ -7,6 +7,7 @@ sealed class Destination(val route: String) {
     object PiggyBank : Destination("piggy_bank")
     object Friends : Destination("friends")
     object Settings : Destination("settings")
+    object ExcludedApps : Destination("excluded_apps")
 
     object Decision : Destination("decision/{wishId}") {
         const val ARG_WISH_ID = "wishId"

@@ -1,5 +1,8 @@
 package com.liam.kaptalismusaufhalter.ui.screens.settings
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings as AndroidSettings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +22,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -29,16 +33,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.liam.kaptalismusaufhalter.BuildConfig
 import com.liam.kaptalismusaufhalter.data.Strictness
 import com.liam.kaptalismusaufhalter.data.toWaitTiers
 import com.liam.kaptalismusaufhalter.domain.PIGGY_STAGES
 import com.liam.kaptalismusaufhalter.domain.calcWaitHours
+import com.liam.kaptalismusaufhalter.guard.ImpulskaufAccessibilityService
 import com.liam.kaptalismusaufhalter.ui.components.BackHeader
 import com.liam.kaptalismusaufhalter.ui.components.formatCurrency
 import com.liam.kaptalismusaufhalter.ui.components.formatWaitLabel
@@ -59,7 +67,11 @@ import com.liam.kaptalismusaufhalter.update.UpdateInstaller
 import kotlinx.coroutines.launch
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = viewModel()) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onExcludedAppsClick: () -> Unit,
+    viewModel: SettingsViewModel = viewModel()
+) {
     val uiState by viewModel.uiState.collectAsState()
     val settings = uiState.settings
     val context = LocalContext.current
@@ -82,6 +94,24 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = viewModel(
 
     val wage = wageText.replace(",", ".").toDoubleOrNull()?.takeIf { it > 0 } ?: settings.hourlyWage
 
+    // Both permissions are granted outside the app (system settings), so re-check whenever
+    // this screen comes back to the foreground instead of only once on first composition.
+    var accessibilityEnabled by remember { mutableStateOf(ImpulskaufAccessibilityService.isEnabled(context)) }
+    var overlayGranted by remember { mutableStateOf(AndroidSettings.canDrawOverlays(context)) }
+    var showAccessibilityExplainer by remember { mutableStateOf(false) }
+    var showOverlayExplainer by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                accessibilityEnabled = ImpulskaufAccessibilityService.isEnabled(context)
+                overlayGranted = AndroidSettings.canDrawOverlays(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     updateInfo?.let { info ->
         UpdateAvailableDialog(
             info = info,
@@ -90,6 +120,43 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = viewModel(
                 updateInfo = null
             },
             onDismiss = { updateInfo = null }
+        )
+    }
+
+    if (showAccessibilityExplainer) {
+        PermissionExplainerDialog(
+            title = "Bedienungshilfen erlauben?",
+            body = "Der Impulskauf-Stopper braucht den Bedienungshilfen-Dienst, um Kauf-" +
+                "Bildschirme in anderen Apps zu erkennen (Preis + Kaufen-Button). Android zeigt " +
+                "dabei eine Warnung über „volle Kontrolle über dein Gerät“ — das steht bei " +
+                "jedem Bedienungshilfen-Dienst so, unabhängig davon, was er tatsächlich tut. Wir " +
+                "lesen nur nach diesem Muster mit, speichern und übertragen nichts.\n\nIn der " +
+                "nächsten Ansicht: „Impulskauf-Stopper“ suchen und aktivieren.",
+            onConfirm = {
+                showAccessibilityExplainer = false
+                context.startActivity(Intent(AndroidSettings.ACTION_ACCESSIBILITY_SETTINGS))
+            },
+            onDismiss = { showAccessibilityExplainer = false }
+        )
+    }
+
+    if (showOverlayExplainer) {
+        PermissionExplainerDialog(
+            title = "Anzeige über anderen Apps erlauben?",
+            body = "Damit der Hinweis wirklich über der anderen App erscheint und du nicht " +
+                "versehentlich am Popup vorbei auf „Kaufen“ tippst, braucht die App die " +
+                "Berechtigung, über anderen Apps zu zeichnen. Das ist eine separate Berechtigung " +
+                "von der Bedienungshilfen-Freigabe — beide werden gebraucht.",
+            onConfirm = {
+                showOverlayExplainer = false
+                context.startActivity(
+                    Intent(
+                        AndroidSettings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:${context.packageName}")
+                    )
+                )
+            },
+            onDismiss = { showOverlayExplainer = false }
         )
     }
 
@@ -120,6 +187,44 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = viewModel(
                     "Danach rechnet die App jeden Preis um. Aktuell: 100 € = ${"%.1f".format(100.0 / wage).replace(".", ",")} Arbeitsstunden.",
                     style = MaterialTheme.typography.bodySmall,
                     color = ColorNeutral700
+                )
+            }
+        }
+
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ColorSurface, RoundedCornerShape(26.dp))
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("Impulskauf-Stopper für andere Apps", style = TextStyle(fontFamily = HeadingFont, fontSize = 16.sp))
+                Text(
+                    "Erkennt Kauf-Bildschirme in anderen Apps (Preis + Kaufen-Button) und zeigt " +
+                        "diesen Hinweis darüber an. Liest dafür Bildschirminhalte anderer Apps mit " +
+                        "dem Bedienungshilfen-Dienst nach diesem Muster mit — nichts wird gespeichert " +
+                        "oder übertragen.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ColorNeutral700
+                )
+                PermissionRow(
+                    label = "Bedienungshilfen-Zugriff",
+                    granted = accessibilityEnabled,
+                    onClick = { showAccessibilityExplainer = true }
+                )
+                PermissionRow(
+                    label = "Über anderen Apps anzeigen",
+                    granted = overlayGranted,
+                    onClick = { showOverlayExplainer = true }
+                )
+                Text(
+                    "Ausgeschlossene Apps verwalten",
+                    style = TextStyle(fontFamily = HeadingFont, fontSize = 14.sp),
+                    color = ColorAccent,
+                    modifier = Modifier
+                        .clickable(onClick = onExcludedAppsClick)
+                        .padding(top = 4.dp)
                 )
             }
         }
@@ -223,6 +328,47 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = viewModel(
 }
 
 @Composable
+private fun PermissionExplainerDialog(
+    title: String,
+    body: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ColorBg, RoundedCornerShape(28.dp))
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(title, style = TextStyle(fontFamily = HeadingFont, fontSize = 20.sp))
+            Text(body, style = MaterialTheme.typography.bodyMedium, color = ColorNeutral700)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ColorAccent, RoundedCornerShape(50))
+                    .clickable(onClick = onConfirm)
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Zu den Einstellungen", style = TextStyle(fontFamily = HeadingFont, fontSize = 15.sp), color = ColorBg)
+            }
+            Text(
+                "Abbrechen",
+                style = MaterialTheme.typography.bodyMedium,
+                color = ColorNeutral600,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onDismiss)
+                    .padding(vertical = 4.dp)
+            )
+        }
+    }
+}
+
+@Composable
 private fun FieldLabel(text: String) {
     Text(text, style = MaterialTheme.typography.bodySmall, color = ColorText.copy(alpha = 0.7f))
 }
@@ -255,6 +401,26 @@ private fun PillInput(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = 16.dp)
+        )
+    }
+}
+
+@Composable
+private fun PermissionRow(label: String, granted: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ColorBg, RoundedCornerShape(50))
+            .clickable(enabled = !granted, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            if (granted) "Erlaubt" else "Aktivieren",
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (granted) ColorNeutral600 else ColorAccent
         )
     }
 }

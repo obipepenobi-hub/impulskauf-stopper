@@ -37,4 +37,6 @@
 
     <string name="friends_placeholder_title">Kein Wettkampf — nur Gesellschaft beim Nichtkaufen</string>
     <string name="friends_placeholder_body">Der Gruppenvergleich mit Freunden kommt in einer späteren Version. Sobald du einer Gruppe beitrittst, siehst du hier die gemeinsame Rangliste.</string>
+
+    <string name="accessibility_service_description">Erkennt Kauf-Bildschirme (Preis + Kaufen-Button) in anderen Apps und zeigt den Impulskauf-Stopper darüber an, bevor du bestätigst. Liest nur nach diesem Muster mit, speichert und überträgt nichts.</string>
 </resources>

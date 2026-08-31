@@ -14,9 +14,15 @@ private val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+private val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `ExcludedApp` (`packageName` TEXT NOT NULL, PRIMARY KEY(`packageName`))")
+    }
+}
+
 @Database(
-    entities = [Wish::class, PiggyBankEntry::class, Settings::class],
-    version = 2,
+    entities = [Wish::class, PiggyBankEntry::class, Settings::class, ExcludedApp::class],
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -24,6 +30,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun wishDao(): WishDao
     abstract fun piggyBankDao(): PiggyBankDao
     abstract fun settingsDao(): SettingsDao
+    abstract fun excludedAppDao(): ExcludedAppDao
 
     companion object {
         @Volatile
@@ -35,7 +42,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "impulskauf.db"
-                ).addMigrations(MIGRATION_1_2).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
             }
         }
     }
