@@ -40,12 +40,14 @@ object UpdateInstaller {
                 }
             }
         }
+        // ACTION_DOWNLOAD_COMPLETE is sent by the system's download provider process, not
+        // by this app, so the receiver must be EXPORTED or the broadcast never arrives.
         val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
         ContextCompat.registerReceiver(
             context.applicationContext,
             receiver,
             filter,
-            ContextCompat.RECEIVER_NOT_EXPORTED
+            ContextCompat.RECEIVER_EXPORTED
         )
     }
 
