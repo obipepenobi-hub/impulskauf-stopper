@@ -77,6 +77,12 @@ class ImpulskaufAccessibilityService : AccessibilityService() {
                 onBuyAnyway = {
                     cooldownUntil[packageName] = System.currentTimeMillis() + COOLDOWN_MS
                     dismiss()
+                },
+                onClose = {
+                    // Treated like "trotzdem kaufen" for cooldown purposes - a false-positive
+                    // trigger closed via the X shouldn't immediately pop up again on the same screen.
+                    cooldownUntil[packageName] = System.currentTimeMillis() + COOLDOWN_MS
+                    dismiss()
                 }
             )
         }

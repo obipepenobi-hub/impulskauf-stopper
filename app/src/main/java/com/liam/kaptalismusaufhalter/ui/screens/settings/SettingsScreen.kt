@@ -131,12 +131,25 @@ fun SettingsScreen(
                 "dabei eine Warnung über „volle Kontrolle über dein Gerät“ — das steht bei " +
                 "jedem Bedienungshilfen-Dienst so, unabhängig davon, was er tatsächlich tut. Wir " +
                 "lesen nur nach diesem Muster mit, speichern und übertragen nichts.\n\nIn der " +
-                "nächsten Ansicht: „Impulskauf-Stopper“ suchen und aktivieren.",
+                "nächsten Ansicht: „Impulskauf-Stopper“ suchen und aktivieren.\n\nWeil die App " +
+                "nicht aus dem Play Store kommt, blockiert Android den Schalter beim ersten Mal " +
+                "eventuell mit „App wurde Zugriff verweigert“. Falls das passiert, tippe unten " +
+                "auf „App-Info öffnen“ und erlaube dort „Eingeschränkte Einstellungen zulassen“.",
             onConfirm = {
                 showAccessibilityExplainer = false
                 context.startActivity(Intent(AndroidSettings.ACTION_ACCESSIBILITY_SETTINGS))
             },
-            onDismiss = { showAccessibilityExplainer = false }
+            onDismiss = { showAccessibilityExplainer = false },
+            secondaryActionLabel = "App-Info öffnen (bei „Zugriff verweigert“)",
+            onSecondaryAction = {
+                showAccessibilityExplainer = false
+                context.startActivity(
+                    Intent(
+                        AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:${context.packageName}")
+                    )
+                )
+            }
         )
     }
 
@@ -332,7 +345,9 @@ private fun PermissionExplainerDialog(
     title: String,
     body: String,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    secondaryActionLabel: String? = null,
+    onSecondaryAction: (() -> Unit)? = null
 ) {
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Column(
@@ -353,6 +368,18 @@ private fun PermissionExplainerDialog(
                 contentAlignment = Alignment.Center
             ) {
                 Text("Zu den Einstellungen", style = TextStyle(fontFamily = HeadingFont, fontSize = 15.sp), color = ColorBg)
+            }
+            if (secondaryActionLabel != null && onSecondaryAction != null) {
+                Text(
+                    secondaryActionLabel,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ColorAccent,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onSecondaryAction)
+                        .padding(vertical = 4.dp)
+                )
             }
             Text(
                 "Abbrechen",

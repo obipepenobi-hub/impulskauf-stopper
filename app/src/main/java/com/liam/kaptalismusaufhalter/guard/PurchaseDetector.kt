@@ -6,9 +6,14 @@ data class PurchaseSignal(val price: Double?)
 
 private val PRICE_REGEX = Regex("""(\d{1,4}(?:[.,]\d{3})*[.,]\d{2})\s?€|€\s?(\d{1,4}(?:[.,]\d{3})*[.,]\d{2})""")
 
+// Deliberately narrow to final-confirmation phrasing (German consumer-protection law
+// requires shops' actual checkout button to say something like "zahlungspflichtig
+// bestellen"), not generic "Jetzt kaufen"/"In den Warenkorb" buttons that already sit on
+// every product page - those would fire on any browsing, not just the checkout step.
 private val BUY_KEYWORDS = listOf(
-    "jetzt kaufen", "kaufen", "bestellen", "zur kasse", "kostenpflichtig bestellen",
-    "kostenpflichtig kaufen", "buy now", "checkout", "place order", "pay now", "purchase"
+    "zahlungspflichtig bestellen", "kostenpflichtig bestellen", "kostenpflichtig kaufen",
+    "kostenpflichtig bezahlen", "verbindlich bestellen", "zur kasse gehen", "zur kasse",
+    "jetzt bezahlen", "checkout", "place order", "pay now", "complete purchase", "confirm order"
 )
 
 // Cap how much of the tree we walk, so a huge/degenerate node tree can't cause an ANR.

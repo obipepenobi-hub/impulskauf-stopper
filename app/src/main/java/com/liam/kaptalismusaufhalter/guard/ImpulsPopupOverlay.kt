@@ -52,7 +52,8 @@ fun ImpulsPopupOverlay(
     detectedPrice: Double?,
     sourceAppLabel: String,
     onRipen: (name: String, price: Double) -> Unit,
-    onBuyAnyway: () -> Unit
+    onBuyAnyway: () -> Unit,
+    onClose: () -> Unit
 ) {
     val context = LocalContext.current
     var settings by remember { mutableStateOf(Settings()) }
@@ -93,12 +94,26 @@ fun ImpulsPopupOverlay(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(modifier = Modifier.size(28.dp)) { PiggyIconSquare() }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(modifier = Modifier.size(28.dp)) { PiggyIconSquare() }
+                    Text(
+                        "IMPULSKAUF-STOPPER",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = ColorNeutral600
+                    )
+                }
                 Text(
-                    "IMPULSKAUF-STOPPER",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = ColorNeutral600
+                    "✕",
+                    style = TextStyle(fontFamily = HeadingFont, fontSize = 18.sp),
+                    color = ColorNeutral600,
+                    modifier = Modifier
+                        .clickable(onClick = onClose)
+                        .padding(8.dp)
                 )
             }
 
