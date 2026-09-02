@@ -50,12 +50,12 @@ class ImpulskaufAccessibilityService : AccessibilityService() {
             val signal = PurchaseDetector.detect(root) ?: return@launch
 
             withMain {
-                showOverlay(packageName, signal.price)
+                showOverlay(packageName, signal.price, signal.title)
             }
         }
     }
 
-    private fun showOverlay(packageName: String, detectedPrice: Double?) {
+    private fun showOverlay(packageName: String, detectedPrice: Double?, detectedTitle: String?) {
         if (!Settings.canDrawOverlays(this)) return
         if (overlay.isShowing()) return
 
@@ -64,6 +64,7 @@ class ImpulskaufAccessibilityService : AccessibilityService() {
         overlay.show { dismiss ->
             ImpulsPopupOverlay(
                 detectedPrice = detectedPrice,
+                detectedTitle = detectedTitle,
                 sourceAppLabel = appLabel,
                 onRipen = { name, price ->
                     scope.launch {

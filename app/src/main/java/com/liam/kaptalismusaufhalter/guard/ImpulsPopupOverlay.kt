@@ -50,6 +50,7 @@ import com.liam.kaptalismusaufhalter.ui.theme.HeadingFont
 @Composable
 fun ImpulsPopupOverlay(
     detectedPrice: Double?,
+    detectedTitle: String?,
     sourceAppLabel: String,
     onRipen: (name: String, price: Double) -> Unit,
     onBuyAnyway: () -> Unit,
@@ -61,10 +62,10 @@ fun ImpulsPopupOverlay(
         settings = (context.applicationContext as ImpulskaufApp).database.settingsDao().get() ?: Settings()
     }
 
-    // No product-name extraction is attempted (too unreliable to guess reliably) - pre-fill
-    // with where it came from so entries in Reift/Sparschwein aren't all identically labeled,
-    // and so the manual fallback isn't a totally blank field to type into.
-    var name by remember { mutableStateOf("Kauf bei $sourceAppLabel") }
+    // Product-name extraction is a best-effort heuristic (longest plausible title text on
+    // screen) - falls back to naming it after the shop when nothing usable was found. Always
+    // shown editable below, since the guess can be wrong.
+    var name by remember { mutableStateOf(detectedTitle ?: "Kauf bei $sourceAppLabel") }
     var priceText by remember { mutableStateOf(detectedPrice?.let { "%.2f".format(it).replace(".", ",") } ?: "") }
     val manualPrice = priceText.replace(",", ".").toDoubleOrNull()
     val price = detectedPrice ?: manualPrice
@@ -122,6 +123,15 @@ fun ImpulsPopupOverlay(
                 style = TextStyle(fontFamily = HeadingFont, fontSize = 24.sp)
             )
 
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    if (detectedTitle != null) "Erkannt:" else "Was du kaufen wolltest:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ColorNeutral600
+                )
+                OverlayField(value = name, onValueChange = { name = it }, placeholder = "Produktname")
+            }
+
             if (detectedPrice != null) {
                 Column {
                     Text(
@@ -139,11 +149,10 @@ fun ImpulsPopupOverlay(
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Kein Preis erkannt — trag kurz nach, was du kaufen willst:",
+                        "Kein Preis erkannt — trag ihn kurz nach:",
                         style = MaterialTheme.typography.bodyMedium,
                         color = ColorNeutral700
                     )
-                    OverlayField(value = name, onValueChange = { name = it }, placeholder = "Was kaufst du?")
                     OverlayField(
                         value = priceText,
                         onValueChange = { priceText = it },

@@ -2,9 +2,26 @@ package com.liam.kaptalismusaufhalter.guard
 
 import android.view.accessibility.AccessibilityNodeInfo
 
-data class PurchaseSignal(val price: Double?)
+data class PurchaseSignal(val price: Double?, val title: String?)
 
 private val PRICE_REGEX = Regex("""(\d{1,4}(?:[.,]\d{3})*[.,]\d{2})\s?€|€\s?(\d{1,4}(?:[.,]\d{3})*[.,]\d{2})""")
+
+// Generic checkout/nav chrome that shouldn't be mistaken for the product name - matched
+// as a whole-string comparison (lowercased), not a substring, so it doesn't reject real
+// titles that merely mention e.g. "Konto".
+private val TITLE_BLOCKLIST = setOf(
+    "warenkorb", "mein warenkorb", "zur kasse", "zur kasse gehen", "kasse", "weiter",
+    "weiter zur kasse", "zurück", "login", "anmelden", "registrieren", "suche", "menü",
+    "konto", "mein konto", "bestellübersicht", "bestellung aufgeben", "lieferadresse",
+    "rechnungsadresse", "zahlungsart", "zahlungsmethode", "gesamtsumme", "gesamt",
+    "zwischensumme", "versandkosten", "versand", "inkl. mwst.", "inkl. mwst", "gutschein",
+    "rabattcode", "gutscheincode", "agb", "datenschutz", "hilfe", "startseite", "home",
+    "impressum", "kontakt", "newsletter", "filialen", "prime", "kostenlose lieferung",
+    "jetzt kostenpflichtig bestellen", "kostenpflichtig bestellen", "zahlungspflichtig bestellen"
+)
+
+private const val TITLE_MIN_LEN = 8
+private const val TITLE_MAX_LEN = 90
 
 // Deliberately narrow to final-confirmation phrasing (German consumer-protection law
 // requires shops' actual checkout button to say something like "zahlungspflichtig
@@ -32,6 +49,7 @@ object PurchaseDetector {
 
         var hasBuyButton = false
         var bestPrice: Double? = null
+        var bestTitle: String? = null
         var visited = 0
 
         fun visit(node: AccessibilityNodeInfo?, depth: Int) {
@@ -40,14 +58,22 @@ object PurchaseDetector {
 
             val text = node.text?.toString() ?: node.contentDescription?.toString()
             if (!text.isNullOrBlank()) {
+                val trimmed = text.trim()
+                val lower = trimmed.lowercase()
                 if (node.isClickable && !hasBuyButton) {
-                    val lower = text.lowercase()
                     if (BUY_KEYWORDS.any { lower.contains(it) }) {
                         hasBuyButton = true
                     }
                 }
                 if (bestPrice == null) {
-                    parsePrice(text)?.let { bestPrice = it }
+                    parsePrice(trimmed)?.let { bestPrice = it }
+                }
+                // Best-effort product title: the longest plain text on screen that isn't a
+                // price, a buy button, or known checkout/nav chrome. Titles tend to be the
+                // most descriptive text on a checkout/cart screen, so "longest wins" is a
+                // decent proxy - it's editable in the popup in case this guesses wrong.
+                if (isTitleCandidate(trimmed, lower) && (bestTitle == null || trimmed.length > bestTitle!!.length)) {
+                    bestTitle = trimmed
                 }
             }
 
@@ -59,7 +85,16 @@ object PurchaseDetector {
 
         visit(root, 0)
 
-        return if (hasBuyButton) PurchaseSignal(price = bestPrice) else null
+        return if (hasBuyButton) PurchaseSignal(price = bestPrice, title = bestTitle) else null
+    }
+
+    private fun isTitleCandidate(trimmed: String, lower: String): Boolean {
+        if (trimmed.length !in TITLE_MIN_LEN..TITLE_MAX_LEN) return false
+        if (lower in TITLE_BLOCKLIST) return false
+        if (PRICE_REGEX.containsMatchIn(trimmed)) return false
+        if (BUY_KEYWORDS.any { lower.contains(it) }) return false
+        if (trimmed.none { it.isLetter() }) return false
+        return true
     }
 
     private fun parsePrice(text: String): Double? {

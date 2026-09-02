@@ -12,7 +12,6 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.liam.kaptalismusaufhalter.ui.navigation.Destination
@@ -38,10 +37,14 @@ fun BottomNavBar(navController: NavHostController) {
             NavigationBarItem(
                 selected = selected,
                 onClick = {
+                    // Deliberately not using saveState/restoreState here: this graph also has
+                    // screens pushed on top of a tab (Einstellungen, Entscheidung, ...) that
+                    // aren't part of the bottom nav itself, and those must never survive a tab
+                    // switch. Popping all the way to Start first guarantees a clean tab screen
+                    // every time, at the cost of not restoring each tab's scroll position.
                     navController.navigate(item.destination.route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        popUpTo(Destination.Start.route) { inclusive = false }
                         launchSingleTop = true
-                        restoreState = true
                     }
                 },
                 icon = { Icon(item.icon, contentDescription = item.label) },

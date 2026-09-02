@@ -29,11 +29,17 @@
     <string name="notification_title">%s ist bereit</string>
     <string name="notification_text">Hast du es noch gekauft, oder war es nur ein Impuls?</string>
 
+    <string name="update_notification_channel_name">App-Updates</string>
+    <string name="update_notification_channel_desc">Benachrichtigt dich, wenn eine neue Version auf GitHub verfügbar ist</string>
+    <string name="update_notification_title">Update verfügbar: Version %s</string>
+    <string name="update_notification_text">Tippen, um herunterzuladen.</string>
+
     <string name="update_available_title">Update verfügbar</string>
     <string name="update_available_body">Version %s ist auf GitHub verfügbar.</string>
     <string name="update_download">Herunterladen</string>
     <string name="update_later">Später</string>
     <string name="update_installing">Update wird heruntergeladen …</string>
+    <string name="press_back_again_to_exit">Nochmal drücken zum Beenden</string>
 
     <string name="friends_placeholder_title">Kein Wettkampf — nur Gesellschaft beim Nichtkaufen</string>
     <string name="friends_placeholder_body">Der Gruppenvergleich mit Freunden kommt in einer späteren Version. Sobald du einer Gruppe beitrittst, siehst du hier die gemeinsame Rangliste.</string>

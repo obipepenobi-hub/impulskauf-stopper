@@ -4,6 +4,7 @@ import android.app.Application
 import com.liam.kaptalismusaufhalter.data.AppDatabase
 import com.liam.kaptalismusaufhalter.data.WishRepository
 import com.liam.kaptalismusaufhalter.work.NotificationHelper
+import com.liam.kaptalismusaufhalter.work.UpdateCheckWorker
 
 class ImpulskaufApp : Application() {
 
@@ -15,5 +16,6 @@ class ImpulskaufApp : Application() {
     override fun onCreate() {
         super.onCreate()
         NotificationHelper.ensureChannel(this)
+        UpdateCheckWorker.schedulePeriodic(this)
     }
 }

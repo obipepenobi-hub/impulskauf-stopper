@@ -4,7 +4,9 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -22,8 +24,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -38,6 +42,7 @@ import com.liam.kaptalismusaufhalter.update.UpdateChecker
 import com.liam.kaptalismusaufhalter.update.UpdateInfo
 import com.liam.kaptalismusaufhalter.update.UpdateInstaller
 import com.liam.kaptalismusaufhalter.work.NotificationHelper
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -54,11 +59,10 @@ class MainActivity : ComponentActivity() {
             ImpulskaufTheme {
                 val navController = rememberNavController()
                 var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
+                var downloadProgress by remember { mutableStateOf<Float?>(null) }
+                val coroutineScope = rememberCoroutineScope()
 
                 LaunchedEffect(Unit) {
-                    // Picks up a download that finished while we were backgrounded/killed and
-                    // whose completion broadcast we therefore missed.
-                    UpdateInstaller.checkPendingDownload(this@MainActivity)
                     updateInfo = UpdateChecker.checkForUpdate(
                         BuildConfig.UPDATE_REPO_OWNER,
                         BuildConfig.UPDATE_REPO_NAME,
@@ -72,9 +76,20 @@ class MainActivity : ComponentActivity() {
                 updateInfo?.let { info ->
                     UpdateAvailableDialog(
                         info = info,
+                        downloadProgress = downloadProgress,
                         onDownload = {
-                            UpdateInstaller.download(this@MainActivity, info)
-                            updateInfo = null
+                            downloadProgress = 0f
+                            coroutineScope.launch {
+                                UpdateInstaller.download(this@MainActivity, info) { progress ->
+                                    downloadProgress = progress
+                                }.onSuccess { apkFile ->
+                                    UpdateInstaller.promptInstall(this@MainActivity, apkFile)
+                                    downloadProgress = null
+                                    updateInfo = null
+                                }.onFailure {
+                                    downloadProgress = null
+                                }
+                            }
                         },
                         onDismiss = { updateInfo = null }
                     )
@@ -85,6 +100,22 @@ class MainActivity : ComponentActivity() {
                 // minimal floating icon on the other screens.
                 val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
                 val showSettingsIcon = currentRoute != null && currentRoute != Destination.Start.route
+
+                // On every other screen, back just pops the nav back stack as usual (handled by
+                // NavHost itself). Only on the Start screen - where back would otherwise exit
+                // immediately - require a second press within 2s, so a stray back tap doesn't
+                // accidentally close the app.
+                val context = LocalContext.current
+                var lastBackPressAt by remember { mutableStateOf(0L) }
+                BackHandler(enabled = currentRoute == Destination.Start.route) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastBackPressAt < 2000L) {
+                        (context as ComponentActivity).finish()
+                    } else {
+                        lastBackPressAt = now
+                        Toast.makeText(context, getString(R.string.press_back_again_to_exit), Toast.LENGTH_SHORT).show()
+                    }
+                }
 
                 Scaffold(
                     topBar = {

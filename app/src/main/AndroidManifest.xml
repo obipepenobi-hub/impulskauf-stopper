@@ -38,14 +38,6 @@
             </intent-filter>
         </activity>
 
-        <receiver
-            android:name=".update.UpdateDownloadReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.DOWNLOAD_COMPLETE" />
-            </intent-filter>
-        </receiver>
-
         <service
             android:name=".guard.ImpulskaufAccessibilityService"
             android:exported="true"

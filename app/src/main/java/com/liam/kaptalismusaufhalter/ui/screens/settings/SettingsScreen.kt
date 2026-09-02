@@ -90,6 +90,7 @@ fun SettingsScreen(
     }
     var checking by remember { mutableStateOf(false) }
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
+    var downloadProgress by remember { mutableStateOf<Float?>(null) }
     var checkedOnce by remember { mutableStateOf(false) }
 
     val wage = wageText.replace(",", ".").toDoubleOrNull()?.takeIf { it > 0 } ?: settings.hourlyWage
@@ -115,9 +116,20 @@ fun SettingsScreen(
     updateInfo?.let { info ->
         UpdateAvailableDialog(
             info = info,
+            downloadProgress = downloadProgress,
             onDownload = {
-                UpdateInstaller.download(context, info)
-                updateInfo = null
+                downloadProgress = 0f
+                scope.launch {
+                    UpdateInstaller.download(context, info) { progress ->
+                        downloadProgress = progress
+                    }.onSuccess { apkFile ->
+                        UpdateInstaller.promptInstall(context, apkFile)
+                        downloadProgress = null
+                        updateInfo = null
+                    }.onFailure {
+                        downloadProgress = null
+                    }
+                }
             },
             onDismiss = { updateInfo = null }
         )
