@@ -154,7 +154,7 @@ fun NewWishScreen(
                     }
                     Column {
                         Text(
-                            "Reifezeit ${formatWaitLabel(waitHours)}",
+                            "Wartezeit ${formatWaitLabel(waitHours)}",
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
@@ -184,7 +184,7 @@ fun NewWishScreen(
                 .padding(vertical = 16.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text("Reifen lassen", style = TextStyle(fontFamily = HeadingFont, fontSize = 16.sp), color = ColorBg)
+            Text("Warten lassen", style = TextStyle(fontFamily = HeadingFont, fontSize = 16.sp), color = ColorBg)
         }
     }
 }

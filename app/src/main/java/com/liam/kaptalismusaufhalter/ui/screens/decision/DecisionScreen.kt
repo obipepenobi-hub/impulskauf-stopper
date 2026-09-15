@@ -1,5 +1,7 @@
 package com.liam.kaptalismusaufhalter.ui.screens.decision
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,16 +27,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.liam.kaptalismusaufhalter.domain.calcWorkHours
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.liam.kaptalismusaufhalter.ui.components.formatCurrency
 import com.liam.kaptalismusaufhalter.ui.theme.ColorAccent300
 import com.liam.kaptalismusaufhalter.ui.theme.ColorAccent400
@@ -67,6 +76,13 @@ fun DecisionScreen(
         (System.currentTimeMillis() - current.createdAt).coerceAtLeast(0)
     ).coerceAtLeast(1)
 
+    var thumbnail by remember(current.imageUrl) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    LaunchedEffect(current.imageUrl) {
+        thumbnail = current.imageUrl?.let { path ->
+            withContext(Dispatchers.IO) { BitmapFactory.decodeFile(path)?.asImageBitmap() }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -96,7 +112,7 @@ fun DecisionScreen(
                     .background(ColorDecisionText.copy(alpha = 0.12f), RoundedCornerShape(50))
                     .padding(horizontal = 12.dp, vertical = 5.dp)
             ) {
-                Text("Reifezeit vorbei", style = MaterialTheme.typography.bodySmall, color = ColorDecisionText300)
+                Text("Wartezeit vorbei", style = MaterialTheme.typography.bodySmall, color = ColorDecisionText300)
             }
         }
 
@@ -124,10 +140,21 @@ fun DecisionScreen(
                 Box(
                     modifier = Modifier
                         .size(56.dp)
-                        .background(ColorDecisionText.copy(alpha = 0.14f), RoundedCornerShape(20.dp)),
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(ColorDecisionText.copy(alpha = 0.14f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("FOTO", style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = ColorDecisionText300, textAlign = TextAlign.Center)
+                    val bmp = thumbnail
+                    if (bmp != null) {
+                        Image(
+                            bitmap = bmp,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(56.dp)
+                        )
+                    } else {
+                        Text("FOTO", style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = ColorDecisionText300, textAlign = TextAlign.Center)
+                    }
                 }
                 Column {
                     Text(current.name, style = TextStyle(fontFamily = HeadingFont, fontSize = 20.sp, color = ColorDecisionText))

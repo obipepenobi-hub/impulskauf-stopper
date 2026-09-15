@@ -9,7 +9,7 @@ class WishRepository(
     private val wishDao: WishDao,
     private val settingsDao: SettingsDao
 ) {
-    suspend fun createWish(name: String, price: Double, linkUrl: String? = null): Long {
+    suspend fun createWish(name: String, price: Double, linkUrl: String? = null, imageUrl: String? = null): Long {
         val settings = settingsDao.get() ?: Settings()
         val waitHours = calcWaitHours(price, settings.waitTimeConfig.toWaitTiers(), settings.strictnessEnum.factor)
         val now = System.currentTimeMillis()
@@ -18,6 +18,7 @@ class WishRepository(
         val wish = Wish(
             name = name,
             price = price,
+            imageUrl = imageUrl,
             linkUrl = linkUrl,
             createdAt = now,
             unlockAt = unlockAt,

@@ -20,7 +20,7 @@ private data class NavItem(val destination: Destination, val icon: androidx.comp
 
 private val NAV_ITEMS = listOf(
     NavItem(Destination.Start, Icons.Filled.Home, "Start"),
-    NavItem(Destination.Reift, Icons.Filled.Spa, "Reift"),
+    NavItem(Destination.Reift, Icons.Filled.Spa, "Warten"),
     NavItem(Destination.NewWish, Icons.Filled.Add, "Neu"),
     NavItem(Destination.PiggyBank, Icons.Filled.Savings, "Schwein"),
     NavItem(Destination.Friends, Icons.Filled.Group, "Freunde")

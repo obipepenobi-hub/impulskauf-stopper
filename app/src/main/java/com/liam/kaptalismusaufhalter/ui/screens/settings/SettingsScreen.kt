@@ -256,7 +256,7 @@ fun SettingsScreen(
 
         item {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                FieldLabel("Wie streng soll die Reifezeit sein?")
+                FieldLabel("Wie streng soll die Wartezeit sein?")
                 Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     Strictness.entries.forEach { option ->
                         StrictnessOption(

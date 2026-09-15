@@ -40,9 +40,9 @@ fun String.toWaitTiers(): List<WaitTier> {
 }
 
 enum class Strictness(val label: String, val factor: Double, val description: String) {
-    SANFT("Sanft", 0.5, "Halbe Reifezeit — für den Einstieg"),
+    SANFT("Sanft", 0.5, "Halbe Wartezeit — für den Einstieg"),
     NORMAL("Normal", 1.0, "Empfohlen: 4 Std bis 14 Tage"),
-    STRENG("Streng", 2.0, "Doppelte Reifezeit — für harte Fälle")
+    STRENG("Streng", 2.0, "Doppelte Wartezeit — für harte Fälle")
 }
 
 @Entity

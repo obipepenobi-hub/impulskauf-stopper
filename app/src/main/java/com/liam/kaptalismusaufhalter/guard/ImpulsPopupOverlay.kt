@@ -1,7 +1,9 @@
 package com.liam.kaptalismusaufhalter.guard
 
+import android.graphics.BitmapFactory
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +28,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
@@ -46,11 +51,14 @@ import com.liam.kaptalismusaufhalter.ui.theme.ColorNeutral700
 import com.liam.kaptalismusaufhalter.ui.theme.ColorSurface
 import com.liam.kaptalismusaufhalter.ui.theme.ColorText
 import com.liam.kaptalismusaufhalter.ui.theme.HeadingFont
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ImpulsPopupOverlay(
     detectedPrice: Double?,
     detectedTitle: String?,
+    imagePath: String?,
     sourceAppLabel: String,
     onRipen: (name: String, price: Double) -> Unit,
     onBuyAnyway: () -> Unit,
@@ -60,6 +68,13 @@ fun ImpulsPopupOverlay(
     var settings by remember { mutableStateOf(Settings()) }
     LaunchedEffect(Unit) {
         settings = (context.applicationContext as ImpulskaufApp).database.settingsDao().get() ?: Settings()
+    }
+
+    var thumbnail by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    LaunchedEffect(imagePath) {
+        thumbnail = imagePath?.let { path ->
+            withContext(Dispatchers.IO) { BitmapFactory.decodeFile(path)?.asImageBitmap() }
+        }
     }
 
     // Product-name extraction is a best-effort heuristic (longest plausible title text on
@@ -123,6 +138,18 @@ fun ImpulsPopupOverlay(
                 style = TextStyle(fontFamily = HeadingFont, fontSize = 24.sp)
             )
 
+            thumbnail?.let { bmp ->
+                Image(
+                    bitmap = bmp,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(96.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                )
+            }
+
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     if (detectedTitle != null) "Erkannt:" else "Was du kaufen wolltest:",
@@ -170,7 +197,7 @@ fun ImpulsPopupOverlay(
                         .padding(14.dp)
                 ) {
                     Text(
-                        "Vorschlag: ${formatWaitLabel(waitHours)} reifen lassen — dann entscheidest du nochmal.",
+                        "Vorschlag: ${formatWaitLabel(waitHours)} warten lassen — dann entscheidest du nochmal.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = ColorNeutral700
                     )
@@ -189,7 +216,7 @@ fun ImpulsPopupOverlay(
                     .padding(vertical = 16.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Reifen lassen", style = TextStyle(fontFamily = HeadingFont, fontSize = 16.sp), color = ColorBg)
+                Text("Warten lassen", style = TextStyle(fontFamily = HeadingFont, fontSize = 16.sp), color = ColorBg)
             }
             Text(
                 "Trotzdem kaufen",

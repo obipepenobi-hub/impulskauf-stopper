@@ -66,7 +66,7 @@ fun ReiftScreen(
     ) {
         item {
             Column {
-                Text("Reift gerade", style = TextStyle(fontFamily = HeadingFont, fontSize = 26.sp))
+                Text("Wartet gerade", style = TextStyle(fontFamily = HeadingFont, fontSize = 26.sp))
                 if (wishes.isNotEmpty()) {
                     Text(
                         "${wishes.size} ${if (wishes.size == 1) "Wunsch" else "Wünsche"} · ${formatCurrency(totalOnTheLine)} auf der Kippe",
@@ -85,7 +85,7 @@ fun ReiftScreen(
         if (wishes.isEmpty()) {
             item {
                 Text(
-                    "Nichts reift gerade. Leg oben einen Wunsch an.",
+                    "Nichts wartet gerade. Leg oben einen Wunsch an.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = ColorNeutral700
                 )
@@ -168,7 +168,7 @@ private fun ReiftItemCard(wish: Wish, hourlyWage: Double, onClick: () -> Unit) {
                     )
                 }
                 Text(
-                    text = if (ready) "reif" else formatRemaining(remaining),
+                    text = if (ready) "bereit" else formatRemaining(remaining),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (ready) ColorAccent else ColorAccent2600
                 )
@@ -221,7 +221,7 @@ private fun QuickAddCard(onAdd: (String, Double) -> Unit) {
                 .padding(vertical = 14.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text("Einreifen lassen", style = TextStyle(fontFamily = HeadingFont, fontSize = 15.sp), color = ColorBg)
+            Text("Warten lassen", style = TextStyle(fontFamily = HeadingFont, fontSize = 15.sp), color = ColorBg)
         }
     }
 }

@@ -3,7 +3,7 @@
     <string name="app_name">Impulskauf-Stopper</string>
 
     <string name="nav_start">Start</string>
-    <string name="nav_reift">Reift</string>
+    <string name="nav_reift">Warten</string>
     <string name="nav_new">Neu</string>
     <string name="nav_piggy">Schwein</string>
     <string name="nav_friends">Freunde</string>
@@ -18,14 +18,14 @@
     <string name="new_wish_link">Link (optional)</string>
     <string name="new_wish_work_hours">Das sind %s Arbeitsstunden für dich</string>
     <string name="new_wish_wait_info">Wartezeit bis zur Entscheidung: %s</string>
-    <string name="new_wish_save">Wunsch einreifen lassen</string>
+    <string name="new_wish_save">Wunsch warten lassen</string>
 
     <string name="decision_bought">Gekauft</string>
     <string name="decision_skipped">Doch nicht gekauft</string>
     <string name="decision_ready_title">Zeit für eine Entscheidung</string>
 
     <string name="notification_channel_name">Impuls-Erinnerungen</string>
-    <string name="notification_channel_desc">Benachrichtigt dich, wenn ein Wunsch ausgereift ist</string>
+    <string name="notification_channel_desc">Benachrichtigt dich, wenn die Wartezeit für einen Wunsch abgelaufen ist</string>
     <string name="notification_title">%s ist bereit</string>
     <string name="notification_text">Hast du es noch gekauft, oder war es nur ein Impuls?</string>
 

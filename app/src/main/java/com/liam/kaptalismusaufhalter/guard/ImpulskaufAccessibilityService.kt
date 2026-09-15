@@ -2,6 +2,7 @@ package com.liam.kaptalismusaufhalter.guard
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
+import android.os.Build
 import android.provider.Settings
 import android.view.accessibility.AccessibilityEvent
 import androidx.core.content.ContextCompat
@@ -49,13 +50,23 @@ class ImpulskaufAccessibilityService : AccessibilityService() {
 
             val signal = PurchaseDetector.detect(root) ?: return@launch
 
+            // Best-effort "photo": crop the live screen around the detected title instead of
+            // trying to pull a specific ImageView out of the accessibility tree (no general API
+            // for that). Only available from Android 11 (API 30) - older devices just get no
+            // photo, same as a manually entered wish.
+            val imagePath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                ScreenshotCapture.capture(this@ImpulskaufAccessibilityService)?.let { bitmap ->
+                    ScreenshotCapture.saveCropped(applicationContext, bitmap, signal.titleBounds)
+                }
+            } else null
+
             withMain {
-                showOverlay(packageName, signal.price, signal.title)
+                showOverlay(packageName, signal.price, signal.title, imagePath)
             }
         }
     }
 
-    private fun showOverlay(packageName: String, detectedPrice: Double?, detectedTitle: String?) {
+    private fun showOverlay(packageName: String, detectedPrice: Double?, detectedTitle: String?, imagePath: String?) {
         if (!Settings.canDrawOverlays(this)) return
         if (overlay.isShowing()) return
 
@@ -65,10 +76,11 @@ class ImpulskaufAccessibilityService : AccessibilityService() {
             ImpulsPopupOverlay(
                 detectedPrice = detectedPrice,
                 detectedTitle = detectedTitle,
+                imagePath = imagePath,
                 sourceAppLabel = appLabel,
                 onRipen = { name, price ->
                     scope.launch {
-                        (applicationContext as ImpulskaufApp).wishRepository.createWish(name, price)
+                        (applicationContext as ImpulskaufApp).wishRepository.createWish(name, price, imageUrl = imagePath)
                         withMain {
                             cooldownUntil[packageName] = System.currentTimeMillis() + COOLDOWN_MS
                             dismiss()
@@ -76,12 +88,14 @@ class ImpulskaufAccessibilityService : AccessibilityService() {
                     }
                 },
                 onBuyAnyway = {
+                    imagePath?.let { java.io.File(it).delete() }
                     cooldownUntil[packageName] = System.currentTimeMillis() + COOLDOWN_MS
                     dismiss()
                 },
                 onClose = {
                     // Treated like "trotzdem kaufen" for cooldown purposes - a false-positive
                     // trigger closed via the X shouldn't immediately pop up again on the same screen.
+                    imagePath?.let { java.io.File(it).delete() }
                     cooldownUntil[packageName] = System.currentTimeMillis() + COOLDOWN_MS
                     dismiss()
                 }

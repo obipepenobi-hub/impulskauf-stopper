@@ -1,5 +1,7 @@
 package com.liam.kaptalismusaufhalter.ui.components
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -15,12 +18,22 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.liam.kaptalismusaufhalter.data.Wish
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.liam.kaptalismusaufhalter.domain.calcWorkHours
 import com.liam.kaptalismusaufhalter.ui.theme.ColorAccent2
 import com.liam.kaptalismusaufhalter.ui.theme.ColorAccent2700
@@ -40,6 +53,13 @@ fun RipeningCard(wish: Wish, hourlyWage: Double, onClick: () -> Unit, modifier: 
     val remaining = (wish.unlockAt - now).coerceAtLeast(0)
     val hours = calcWorkHours(wish.price, hourlyWage)
 
+    var thumbnail by remember(wish.imageUrl) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    LaunchedEffect(wish.imageUrl) {
+        thumbnail = wish.imageUrl?.let { path ->
+            withContext(Dispatchers.IO) { BitmapFactory.decodeFile(path)?.asImageBitmap() }
+        }
+    }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         onClick = onClick,
@@ -52,21 +72,37 @@ fun RipeningCard(wish: Wish, hourlyWage: Double, onClick: () -> Unit, modifier: 
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    wish.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-                Text(
-                    "${formatCurrency(wish.price)} · ${"%.1f".format(hours)} Std",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = ColorNeutral700
-                )
+                thumbnail?.let { bmp ->
+                    Image(
+                        bitmap = bmp,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                    )
+                }
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    Text(
+                        wish.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    Text(
+                        "${formatCurrency(wish.price)} · ${"%.1f".format(hours)} Std",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ColorNeutral700
+                    )
+                }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -87,7 +123,7 @@ fun RipeningCard(wish: Wish, hourlyWage: Double, onClick: () -> Unit, modifier: 
                     )
                 }
                 Text(
-                    text = if (remaining <= 0) "reif" else formatRemaining(remaining),
+                    text = if (remaining <= 0) "bereit" else formatRemaining(remaining),
                     style = MaterialTheme.typography.labelSmall,
                     color = ColorAccent2700,
                     textAlign = TextAlign.End,

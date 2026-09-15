@@ -156,7 +156,7 @@ fun StartScreen(
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "${wish.name} ist reif",
+                            "${wish.name} ist bereit",
                             style = TextStyle(fontFamily = HeadingFont, fontSize = 16.sp),
                             color = ColorBg
                         )
@@ -177,7 +177,7 @@ fun StartScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Bottom
             ) {
-                Text("Reift gerade", style = MaterialTheme.typography.titleMedium)
+                Text("Wartet gerade", style = MaterialTheme.typography.titleMedium)
                 Text(
                     "Alle ${state.pendingCount}",
                     style = MaterialTheme.typography.bodyMedium,
@@ -193,7 +193,7 @@ fun StartScreen(
         if (ripeningNotReady.isEmpty() && readyWish == null) {
             item {
                 Text(
-                    "Nichts reift gerade.",
+                    "Nichts wartet gerade.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = ColorNeutral700
                 )
