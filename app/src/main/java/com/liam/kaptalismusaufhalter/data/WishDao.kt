@@ -14,6 +14,9 @@ interface WishDao {
     @Update
     suspend fun update(wish: Wish)
 
+    @Query("DELETE FROM Wish WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
     @Query("SELECT * FROM Wish WHERE id = :id")
     suspend fun getById(id: Long): Wish?
 

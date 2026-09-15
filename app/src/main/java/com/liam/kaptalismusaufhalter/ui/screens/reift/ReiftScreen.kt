@@ -1,5 +1,7 @@
 package com.liam.kaptalismusaufhalter.ui.screens.reift
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,6 +22,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,8 +30,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,6 +54,8 @@ import com.liam.kaptalismusaufhalter.ui.theme.ColorNeutral700
 import com.liam.kaptalismusaufhalter.ui.theme.ColorSurface
 import com.liam.kaptalismusaufhalter.ui.theme.ColorText
 import com.liam.kaptalismusaufhalter.ui.theme.HeadingFont
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ReiftScreen(
@@ -91,15 +100,20 @@ fun ReiftScreen(
                 )
             }
         } else {
-            items(wishes) { wish ->
-                ReiftItemCard(wish = wish, hourlyWage = hourlyWage, onClick = { onWishClick(wish.id) })
+            items(wishes, key = { it.id }) { wish ->
+                ReiftItemCard(
+                    wish = wish,
+                    hourlyWage = hourlyWage,
+                    onClick = { onWishClick(wish.id) },
+                    onDelete = { viewModel.deleteWish(wish.id) }
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ReiftItemCard(wish: Wish, hourlyWage: Double, onClick: () -> Unit) {
+private fun ReiftItemCard(wish: Wish, hourlyWage: Double, onClick: () -> Unit, onDelete: () -> Unit) {
     val now = System.currentTimeMillis()
     val total = (wish.unlockAt - wish.createdAt).coerceAtLeast(1)
     val elapsed = (now - wish.createdAt).coerceIn(0, total)
@@ -109,6 +123,22 @@ private fun ReiftItemCard(wish: Wish, hourlyWage: Double, onClick: () -> Unit) {
     val hours = calcWorkHours(wish.price, hourlyWage)
     val shopLabel = shopLabelFor(wish.linkUrl)
 
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var thumbnail by remember(wish.imageUrl) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    LaunchedEffect(wish.imageUrl) {
+        thumbnail = wish.imageUrl?.let { path ->
+            withContext(Dispatchers.IO) { BitmapFactory.decodeFile(path)?.asImageBitmap() }
+        }
+    }
+
+    if (showDeleteConfirm) {
+        DeleteWishConfirmDialog(
+            wishName = wish.name,
+            onConfirm = { showDeleteConfirm = false; onDelete() },
+            onDismiss = { showDeleteConfirm = false }
+        )
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -117,14 +147,25 @@ private fun ReiftItemCard(wish: Wish, hourlyWage: Double, onClick: () -> Unit) {
             .padding(horizontal = 17.dp, vertical = 16.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(13.dp), verticalAlignment = Alignment.Top) {
                 Box(
                     modifier = Modifier
                         .size(46.dp)
-                        .background(ColorNeutral300, RoundedCornerShape(18.dp)),
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(ColorNeutral300),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("FOTO", style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = ColorNeutral700)
+                    val bmp = thumbnail
+                    if (bmp != null) {
+                        Image(
+                            bitmap = bmp,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(46.dp)
+                        )
+                    } else {
+                        Text("FOTO", style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = ColorNeutral700)
+                    }
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -149,6 +190,14 @@ private fun ReiftItemCard(wish: Wish, hourlyWage: Double, onClick: () -> Unit) {
                         modifier = Modifier.padding(top = 2.dp)
                     )
                 }
+                Text(
+                    "✕",
+                    style = TextStyle(fontFamily = HeadingFont, fontSize = 14.sp),
+                    color = ColorNeutral600,
+                    modifier = Modifier
+                        .clickable { showDeleteConfirm = true }
+                        .padding(start = 6.dp, bottom = 4.dp)
+                )
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(11.dp),
@@ -173,6 +222,46 @@ private fun ReiftItemCard(wish: Wish, hourlyWage: Double, onClick: () -> Unit) {
                     color = if (ready) ColorAccent else ColorAccent2600
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun DeleteWishConfirmDialog(wishName: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ColorBg, RoundedCornerShape(28.dp))
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text("Warten abbrechen?", style = TextStyle(fontFamily = HeadingFont, fontSize = 20.sp))
+            Text(
+                "„$wishName“ wird komplett gelöscht — nichts wandert ins Sparschwein, das lässt sich nicht rückgängig machen.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = ColorNeutral700
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ColorAccent, RoundedCornerShape(50))
+                    .clickable(onClick = onConfirm)
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Wunsch löschen", style = TextStyle(fontFamily = HeadingFont, fontSize = 15.sp), color = ColorBg)
+            }
+            Text(
+                "Abbrechen",
+                style = MaterialTheme.typography.bodyMedium,
+                color = ColorNeutral600,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onDismiss)
+                    .padding(vertical = 4.dp)
+            )
         }
     }
 }

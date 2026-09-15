@@ -31,4 +31,12 @@ class ReiftViewModel(application: Application) : AndroidViewModel(application) {
             app.wishRepository.createWish(name, price)
         }
     }
+
+    // Fully removes the wish - unlike a normal decision, this doesn't touch the piggy bank or
+    // any stats, it's meant for "I never wanted to track this" (e.g. a bad auto-detected entry).
+    fun deleteWish(id: Long) {
+        viewModelScope.launch {
+            database.wishDao().deleteById(id)
+        }
+    }
 }

@@ -10,9 +10,12 @@ internal val PRICE_REGEX = Regex("""(\d{1,4}(?:[.,]\d{3})*[.,]\d{2})\s?€|€\s
 
 // Generic checkout/nav chrome that shouldn't be mistaken for the product name - matched
 // as a whole-string comparison (lowercased), not a substring, so it doesn't reject real
-// titles that merely mention e.g. "Konto".
+// titles that merely mention e.g. "Konto". Includes shop-specific cart labels (Amazon uses
+// "Einkaufswagen", not the more generic "Warenkorb") since a bare nav tab label is exactly
+// the kind of short text that can otherwise win a proximity match by accident.
 internal val TITLE_BLOCKLIST = setOf(
-    "warenkorb", "mein warenkorb", "zur kasse", "zur kasse gehen", "kasse", "weiter",
+    "warenkorb", "mein warenkorb", "einkaufswagen", "mein einkaufswagen", "dein einkaufswagen",
+    "listen", "erneut kaufen", "zur kasse", "zur kasse gehen", "kasse", "weiter",
     "weiter zur kasse", "zurück", "login", "anmelden", "registrieren", "suche", "menü",
     "konto", "mein konto", "bestellübersicht", "bestellung aufgeben", "lieferadresse",
     "rechnungsadresse", "zahlungsart", "zahlungsmethode", "gesamtsumme", "gesamt",
@@ -55,6 +58,7 @@ private const val MAX_NODES = 400
 private const val MAX_DEPTH = 40
 
 internal data class TitleCandidate(val text: String, val bounds: Rect)
+internal data class PricePoint(val value: Double, val bounds: Rect)
 
 /**
  * Best-effort heuristic: only fires when the screen has BOTH a price-shaped string
@@ -67,8 +71,7 @@ object PurchaseDetector {
         if (root == null) return null
 
         var hasBuyButton = false
-        var bestPrice: Double? = null
-        var priceBounds: Rect? = null
+        val prices = mutableListOf<PricePoint>()
         val titleCandidates = mutableListOf<TitleCandidate>()
         var visited = 0
 
@@ -85,13 +88,10 @@ object PurchaseDetector {
                         hasBuyButton = true
                     }
                 }
-                if (bestPrice == null) {
-                    parsePrice(trimmed)?.let {
-                        bestPrice = it
-                        val bounds = Rect()
-                        node.getBoundsInScreen(bounds)
-                        priceBounds = bounds
-                    }
+                parsePrice(trimmed)?.let {
+                    val bounds = Rect()
+                    node.getBoundsInScreen(bounds)
+                    prices.add(PricePoint(it, bounds))
                 }
                 if (isTitleCandidate(trimmed, lower)) {
                     val bounds = Rect()
@@ -110,40 +110,60 @@ object PurchaseDetector {
 
         if (!hasBuyButton) return null
 
-        val anchorCenterY = priceBounds?.let { (it.top + it.bottom) / 2 }
-        val bestCandidate = pickBestTitle(
+        val (bestPrice, bestTitle) = pickBestPair(
+            prices,
             titleCandidates,
-            anchorCenterY,
-            centerYOf = { (it.bounds.top + it.bounds.bottom) / 2 },
-            lengthOf = { it.text.length }
+            priceCenterYOf = { (it.bounds.top + it.bounds.bottom) / 2 },
+            titleCenterYOf = { (it.bounds.top + it.bounds.bottom) / 2 },
+            titleLengthOf = { it.text.length }
         )
 
         return PurchaseSignal(
-            price = bestPrice,
-            title = bestCandidate?.text?.let { truncateTitle(it) },
-            titleBounds = bestCandidate?.bounds
+            price = bestPrice?.value,
+            title = bestTitle?.text?.let { truncateTitle(it) },
+            titleBounds = bestTitle?.bounds
         )
     }
 
     /**
-     * Prefers whichever candidate sits closest (vertically) to the price that was picked - on
-     * a cart/checkout screen the product title is right next to its own price, whereas
-     * marketing copy tends to live elsewhere on the screen. Falls back to the longest
-     * candidate when no price was found to anchor to.
+     * A cart/checkout screen can show more than one price (e.g. a subtotal near the top AND
+     * the same item's price again next to its title further down) - picking "whichever price
+     * appears first" and then finding the nearest title to *that* can anchor on the wrong one
+     * (the subtotal, which sits closer to nav chrome like a tab label than to the real title).
      *
-     * Generic over T (rather than taking [TitleCandidate]/[Rect] directly) so this selection
-     * logic can be unit-tested with plain data - android.graphics.Rect's real fields aren't
-     * settable through its stubbed constructor in local JVM unit tests.
+     * Instead this pairs every price with its own nearest title candidate, then picks whichever
+     * (price, title) pair is closest together overall - the real product row's title sits right
+     * next to its own price, which is a tighter pairing than any price has with unrelated chrome
+     * elsewhere on the screen.
+     *
+     * Generic over P/T (rather than taking [PricePoint]/[TitleCandidate] directly) so this
+     * selection logic can be unit-tested with plain data - android.graphics.Rect's real fields
+     * aren't settable through its stubbed constructor in local JVM unit tests.
      */
-    internal fun <T> pickBestTitle(
-        candidates: List<T>,
-        anchorCenterY: Int?,
-        centerYOf: (T) -> Int,
-        lengthOf: (T) -> Int
-    ): T? = if (anchorCenterY == null) {
-        candidates.maxByOrNull(lengthOf)
-    } else {
-        candidates.minByOrNull { abs(centerYOf(it) - anchorCenterY) }
+    internal fun <P, T> pickBestPair(
+        prices: List<P>,
+        titles: List<T>,
+        priceCenterYOf: (P) -> Int,
+        titleCenterYOf: (T) -> Int,
+        titleLengthOf: (T) -> Int
+    ): Pair<P?, T?> {
+        if (prices.isEmpty()) return null to titles.maxByOrNull(titleLengthOf)
+        if (titles.isEmpty()) return prices.first() to null
+
+        var bestPrice = prices.first()
+        var bestTitle: T? = null
+        var bestDistance = Int.MAX_VALUE
+        for (price in prices) {
+            val priceCenterY = priceCenterYOf(price)
+            val nearestTitle = titles.minByOrNull { abs(titleCenterYOf(it) - priceCenterY) } ?: continue
+            val distance = abs(titleCenterYOf(nearestTitle) - priceCenterY)
+            if (distance < bestDistance) {
+                bestDistance = distance
+                bestPrice = price
+                bestTitle = nearestTitle
+            }
+        }
+        return bestPrice to bestTitle
     }
 
     internal fun truncateTitle(text: String, maxLen: Int = TITLE_DISPLAY_MAX_LEN): String =
