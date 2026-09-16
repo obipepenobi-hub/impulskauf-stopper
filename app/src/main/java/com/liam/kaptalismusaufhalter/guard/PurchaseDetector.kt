@@ -32,7 +32,53 @@ internal val TITLE_REJECT_SUBSTRINGS = listOf(
     "bevor du", "das könnte dir auch gefallen", "das könnte dich auch interessieren",
     "kunden kauften auch", "ähnliche artikel", "empfehlungen", "gesponsert", "anzeige",
     "häufig zusammen gekauft", "andere kunden interessierten sich auch für",
-    "nachrichten zu artikeln", "hier sind einige dinge"
+    "nachrichten zu artikeln", "hier sind einige dinge",
+    "lieferung für", "lieferung am", "geliefert am", "kostenlose lieferung am",
+    "auswahl aller artikel", "melde dich an", "einfuhrgebühren", "einfuhrabgaben",
+    "zusätzliche gebühren", "gratisversand", "sichere zahlungsoptionen",
+    "nutzungsbedingungen", "datenschutzrichtlinie", "erfolgreicher bezahlung",
+    "in rechnung gestellt", "als gast bezahlen"
+)
+
+// Amazon (and similar shops) reuse "Warenkorb"/"Einkaufswagen" inside many short chrome
+// labels beyond the exact strings in TITLE_BLOCKLIST - e.g. "Alle Einkaufswagen" (the
+// select-all/deselect-all checkbox above the cart list, which is what got picked as a
+// "product name" in a real bug report). Enumerating every such label is a losing game, so
+// once a candidate is short (a handful of words) any occurrence of these words is treated
+// as cart chrome rather than a real product title - real titles essentially never contain
+// them and are almost always much longer anyway.
+internal val CART_CHROME_WORDS = setOf("warenkorb", "einkaufswagen")
+private const val CART_CHROME_MAX_WORDS = 4
+
+// The recurring failure mode isn't a single bad word - it's entire *sections* below the real
+// cart items ("Nochmals kaufen", "Für später gespeichert", recommendation carousels). Those
+// sections have their own compact title+price pairs that routinely sit CLOSER together than
+// the real item's title and price (which often have seller/stock/discount text between them),
+// so they can win the nearest-pair search outright even after individual words are blocklisted.
+// Once traversal (which follows the tree in document order, matching the visual top-to-bottom
+// order for a normal layout) hits one of these section headers, everything from that point on
+// is excluded from title/price collection entirely - a structural cutoff instead of another
+// word to chase.
+internal val SECTION_END_MARKERS = listOf(
+    "für später gespeichert", "später kaufen", "gespeicherte artikel",
+    "nochmals kaufen", "häufig erneut gekauft", "wird oft zusammen gekauft",
+    "das könnte dir auch gefallen", "das könnte dich auch interessieren",
+    "ähnliche artikel", "empfehlungen für dich", "kunden kauften auch",
+    "andere kunden interessierten sich auch für", "gesponsert",
+    "rücksendungen sind einfach", "inspiriert von deinem", "entdecke",
+    "spare bei deiner bestellung", "möchtest ein gerät eintauschen"
+)
+
+// A price-shaped number that isn't actually THIS item's price - either a crossed-out "was X€"
+// reference price right next to the real one (e.g. Temu's "57,66€ UVP106,39€"), or an order
+// total/subtotal bundled with its label in one node (e.g. "Gesamtpreis (inkl. MwSt.) 448,98 €").
+// Both match PRICE_REGEX just as well as the real per-item price, and a total in particular can
+// easily sit closer to a (long, multi-line) title than the item's own price further down below
+// a badge/quantity row does - recognized by the label text shops conventionally pair it with,
+// not by strikethrough (accessibility text doesn't carry that formatting).
+internal val NON_ITEM_PRICE_MARKERS = listOf(
+    "uvp", "statt ", "unverbindliche preisempfehlung", "neupreis", "€ neu",
+    "gesamtpreis", "gesamtsumme", "zwischensumme", "gesamt ", "summe"
 )
 
 internal const val TITLE_MIN_LEN = 8
@@ -43,19 +89,33 @@ internal const val TITLE_MIN_LEN = 8
 internal const val TITLE_MAX_LEN = 160
 private const val TITLE_DISPLAY_MAX_LEN = 100
 
-// Deliberately narrow to final-confirmation phrasing (German consumer-protection law
-// requires shops' actual checkout button to say something like "zahlungspflichtig
-// bestellen"), not generic "Jetzt kaufen"/"In den Warenkorb" buttons that already sit on
-// every product page - those would fire on any browsing, not just the checkout step.
+// Mostly scoped to final-confirmation phrasing (German consumer-protection law requires
+// shops' actual checkout button to say something like "zahlungspflichtig bestellen"), not
+// generic "Jetzt kaufen"/"In den Warenkorb" buttons that already sit on every product page -
+// those would fire on any browsing, not just the checkout step. Also includes a few real
+// multi-step-checkout and single-tap-purchase phrasings found via testing against real shops
+// (Refurbed's cart says "Weiter zum Versand", not any final-order wording at all; Play Store's
+// pre-order flow has no cart step, so "vorbestellen" IS the purchase-committing tap) - these are
+// still specific enough phrases (not bare "Weiter"/"Kaufen") that they shouldn't fire on
+// ordinary browsing, and detect() only fires when a price is also visible on the same screen.
 internal val BUY_KEYWORDS = listOf(
     "zahlungspflichtig bestellen", "kostenpflichtig bestellen", "kostenpflichtig kaufen",
     "kostenpflichtig bezahlen", "verbindlich bestellen", "zur kasse gehen", "zur kasse",
-    "jetzt bezahlen", "checkout", "place order", "pay now", "complete purchase", "confirm order"
+    "jetzt bezahlen", "checkout", "place order", "pay now", "complete purchase", "confirm order",
+    "vorbestellen", "weiter zum versand", "weiter zur bezahlung", "weiter zur lieferadresse",
+    "bestellung abschließen", "kauf abschließen", "jetzt abonnieren"
 )
 
 // Cap how much of the tree we walk, so a huge/degenerate node tree can't cause an ANR.
 private const val MAX_NODES = 400
 private const val MAX_DEPTH = 40
+
+// How many of a price's nearest title candidates to consider before picking the longest one -
+// see the comment on pickBestPair for why "nearest wins" alone isn't enough. Needs to be
+// generous enough that the real title is still in the running even when something bulky (a
+// cover image, a multi-line badge/quantity block) sits between it and its own price - a real
+// Play Store screen needed 8 before the actual book title beat several short nearby labels.
+private const val NEAREST_TITLES_TO_CONSIDER = 8
 
 internal data class TitleCandidate(val text: String, val bounds: Rect)
 internal data class PricePoint(val value: Double, val bounds: Rect)
@@ -71,6 +131,7 @@ object PurchaseDetector {
         if (root == null) return null
 
         var hasBuyButton = false
+        var pastPurchaseSection = false
         val prices = mutableListOf<PricePoint>()
         val titleCandidates = mutableListOf<TitleCandidate>()
         var visited = 0
@@ -83,20 +144,33 @@ object PurchaseDetector {
             if (!text.isNullOrBlank()) {
                 val trimmed = text.trim()
                 val lower = trimmed.lowercase()
+
+                if (!pastPurchaseSection && SECTION_END_MARKERS.any { lower.contains(it) }) {
+                    pastPurchaseSection = true
+                }
+
+                // The buy button itself can legitimately appear after an upsell section on some
+                // real pages (e.g. a trade-in promo sandwiched between the cart item and the
+                // "continue" button) - the section cutoff below only stops title/price
+                // collection, it must never also suppress buy-button detection.
                 if (node.isClickable && !hasBuyButton) {
                     if (BUY_KEYWORDS.any { lower.contains(it) }) {
                         hasBuyButton = true
                     }
                 }
-                parsePrice(trimmed)?.let {
-                    val bounds = Rect()
-                    node.getBoundsInScreen(bounds)
-                    prices.add(PricePoint(it, bounds))
-                }
-                if (isTitleCandidate(trimmed, lower)) {
-                    val bounds = Rect()
-                    node.getBoundsInScreen(bounds)
-                    titleCandidates.add(TitleCandidate(trimmed, bounds))
+                if (!pastPurchaseSection) {
+                    if (NON_ITEM_PRICE_MARKERS.none { lower.contains(it) }) {
+                        parsePrice(trimmed)?.let {
+                            val bounds = Rect()
+                            node.getBoundsInScreen(bounds)
+                            prices.add(PricePoint(it, bounds))
+                        }
+                    }
+                    if (isTitleCandidate(trimmed, lower)) {
+                        val bounds = Rect()
+                        node.getBoundsInScreen(bounds)
+                        titleCandidates.add(TitleCandidate(trimmed, bounds))
+                    }
                 }
             }
 
@@ -131,10 +205,17 @@ object PurchaseDetector {
      * appears first" and then finding the nearest title to *that* can anchor on the wrong one
      * (the subtotal, which sits closer to nav chrome like a tab label than to the real title).
      *
-     * Instead this pairs every price with its own nearest title candidate, then picks whichever
-     * (price, title) pair is closest together overall - the real product row's title sits right
-     * next to its own price, which is a tighter pairing than any price has with unrelated chrome
-     * elsewhere on the screen.
+     * A real product row also routinely has short incidental text sitting BETWEEN its title and
+     * its own price - stock status ("Auf Lager"), seller info ("Verkäufer: X"), condition, etc.
+     * Those are frequently closer to the price than the real (much longer) title is, so simply
+     * picking the single nearest title candidate per price can pick one of them instead. To
+     * guard against that, each price's title is chosen from among its [NEAREST_TITLES_TO_CONSIDER]
+     * nearest candidates by picking the LONGEST of that shortlist, not just the nearest one -
+     * short incidental labels lose to the real title on length once both are in the running.
+     *
+     * Across all prices, this then picks whichever (price, title) pair ends up closest together
+     * overall - the real product row's pairing is still tighter than any price has with unrelated
+     * chrome elsewhere on the screen.
      *
      * Generic over P/T (rather than taking [PricePoint]/[TitleCandidate] directly) so this
      * selection logic can be unit-tested with plain data - android.graphics.Rect's real fields
@@ -155,12 +236,15 @@ object PurchaseDetector {
         var bestDistance = Int.MAX_VALUE
         for (price in prices) {
             val priceCenterY = priceCenterYOf(price)
-            val nearestTitle = titles.minByOrNull { abs(titleCenterYOf(it) - priceCenterY) } ?: continue
-            val distance = abs(titleCenterYOf(nearestTitle) - priceCenterY)
+            val shortlist = titles
+                .sortedBy { abs(titleCenterYOf(it) - priceCenterY) }
+                .take(NEAREST_TITLES_TO_CONSIDER)
+            val chosenTitle = shortlist.maxByOrNull(titleLengthOf) ?: continue
+            val distance = abs(titleCenterYOf(chosenTitle) - priceCenterY)
             if (distance < bestDistance) {
                 bestDistance = distance
                 bestPrice = price
-                bestTitle = nearestTitle
+                bestTitle = chosenTitle
             }
         }
         return bestPrice to bestTitle
@@ -173,10 +257,16 @@ object PurchaseDetector {
         if (trimmed.length !in TITLE_MIN_LEN..TITLE_MAX_LEN) return false
         if (lower in TITLE_BLOCKLIST) return false
         if (TITLE_REJECT_SUBSTRINGS.any { lower.contains(it) }) return false
+        if (isCartChromeLabel(lower)) return false
         if (PRICE_REGEX.containsMatchIn(trimmed)) return false
         if (BUY_KEYWORDS.any { lower.contains(it) }) return false
         if (trimmed.none { it.isLetter() }) return false
         return true
+    }
+
+    private fun isCartChromeLabel(lower: String): Boolean {
+        if (lower.split(Regex("\\s+")).size > CART_CHROME_MAX_WORDS) return false
+        return CART_CHROME_WORDS.any { lower.contains(it) }
     }
 
     private fun parsePrice(text: String): Double? {

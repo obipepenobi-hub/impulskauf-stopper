@@ -7,11 +7,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Covers the pure title/price-pairing logic that misfired twice on the same real Amazon cart
- * screenshot: first the old "longest text wins" heuristic picked a recommendations banner, then
- * (after fixing that) "closest title to the first price found" picked the "Einkaufswagen" tab
- * label, because the *first* price on screen was the subtotal near the top nav, not the item's
- * own price next to its title further down. These run on the plain JVM (no Robolectric) -
+ * Covers the pure title/price-pairing logic that misfired three times on the same real Amazon
+ * cart screenshot: first the old "longest text wins" heuristic picked a recommendations banner,
+ * then (after fixing that) "closest title to the first price found" picked the "Einkaufswagen"
+ * tab label because the *first* price on screen was the subtotal near the top nav rather than
+ * the item's own price further down, and then - after pairing every price with its own nearest
+ * title - the exact-match blocklist still let "Alle Einkaufswagen" (the select-all checkbox
+ * label) through as a candidate. These run on the plain JVM (no Robolectric) -
  * android.graphics.Rect isn't usable here since its constructor is stubbed out in local unit
  * tests, which is exactly why [PurchaseDetector.pickBestPair] is generic over plain data
  * instead of taking Rect directly.
@@ -55,6 +57,23 @@ class PurchaseDetectorTest {
     fun `rejects plain nav chrome like Warenkorb`() {
         val text = "Warenkorb"
         assertFalse(PurchaseDetector.isTitleCandidate(text, text.lowercase()))
+    }
+
+    @Test
+    fun `rejects the select-all checkbox label that caused a third bug`() {
+        // "Alle Einkaufswagen" (the "select/deselect all" checkbox above the cart list) isn't
+        // in the exact-match blocklist, but slipped through as a "product name" in a real bug
+        // report - short chrome labels mentioning the cart word should be rejected generically.
+        val text = "Alle Einkaufswagen"
+        assertFalse(PurchaseDetector.isTitleCandidate(text, text.lowercase()))
+    }
+
+    @Test
+    fun `still accepts a real product title even if it were to mention cart words in passing`() {
+        // Sanity check that the cart-chrome filter is scoped to short labels only, not any
+        // mention of the word anywhere - long real titles should never be affected by it.
+        val text = realProductTitle
+        assertTrue(PurchaseDetector.isTitleCandidate(text, text.lowercase()))
     }
 
     @Test
