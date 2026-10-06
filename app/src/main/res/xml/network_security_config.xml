@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- HTTPS only, and only certificate authorities shipped with the system: a CA that someone
+         installed on the phone (the usual way to intercept TLS traffic) is NOT trusted, so the
+         update check/download can't be read or swapped by a man-in-the-middle proxy. -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

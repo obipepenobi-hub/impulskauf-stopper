@@ -51,6 +51,8 @@ object UpdateChecker {
                     }
                 }
                 val apk = apkUrl ?: return@withContext null
+                // The response is untrusted input - only ever offer a download from our own release.
+                if (!UpdateUrlPolicy.isAllowedDownloadUrl(apk, owner, repo)) return@withContext null
 
                 UpdateInfo(
                     versionName = tagName,

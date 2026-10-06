@@ -1,6 +1,5 @@
 package com.liam.kaptalismusaufhalter.guard
 
-import android.graphics.BitmapFactory
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -37,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.liam.kaptalismusaufhalter.ImpulskaufApp
+import com.liam.kaptalismusaufhalter.security.WishImageStore
 import com.liam.kaptalismusaufhalter.data.Settings
 import com.liam.kaptalismusaufhalter.data.toWaitTiers
 import com.liam.kaptalismusaufhalter.domain.calcWaitHours
@@ -73,7 +73,7 @@ fun ImpulsPopupOverlay(
     var thumbnail by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
     LaunchedEffect(imagePath) {
         thumbnail = imagePath?.let { path ->
-            withContext(Dispatchers.IO) { BitmapFactory.decodeFile(path)?.asImageBitmap() }
+            withContext(Dispatchers.IO) { WishImageStore.decode(context, path)?.asImageBitmap() }
         }
     }
 

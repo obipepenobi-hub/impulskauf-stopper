@@ -17,6 +17,12 @@ interface WishDao {
     @Query("DELETE FROM Wish WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query("SELECT imageUrl FROM Wish WHERE imageUrl IS NOT NULL")
+    suspend fun allImagePaths(): List<String>
+
+    @Query("UPDATE Wish SET imageUrl = NULL WHERE imageUrl IS NOT NULL")
+    suspend fun clearImagePaths()
+
     @Query("SELECT * FROM Wish WHERE id = :id")
     suspend fun getById(id: Long): Wish?
 

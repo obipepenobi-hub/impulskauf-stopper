@@ -7,6 +7,7 @@ import com.liam.kaptalismusaufhalter.ImpulskaufApp
 import com.liam.kaptalismusaufhalter.data.Settings
 import com.liam.kaptalismusaufhalter.data.Wish
 import com.liam.kaptalismusaufhalter.data.WishStatus
+import com.liam.kaptalismusaufhalter.security.WishImageStore
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -36,6 +37,8 @@ class ReiftViewModel(application: Application) : AndroidViewModel(application) {
     // any stats, it's meant for "I never wanted to track this" (e.g. a bad auto-detected entry).
     fun deleteWish(id: Long) {
         viewModelScope.launch {
+            // The product screenshot goes with the wish - nothing is left behind on disk.
+            database.wishDao().getById(id)?.imageUrl?.let { WishImageStore.delete(app, it) }
             database.wishDao().deleteById(id)
         }
     }

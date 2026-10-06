@@ -11,6 +11,7 @@ import com.liam.kaptalismusaufhalter.data.PiggyBankEntry
 import com.liam.kaptalismusaufhalter.data.Settings
 import com.liam.kaptalismusaufhalter.data.Wish
 import com.liam.kaptalismusaufhalter.data.WishStatus
+import com.liam.kaptalismusaufhalter.security.WishImageStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -47,7 +48,9 @@ class DecisionViewModel(application: Application, private val wishId: Long) : An
         viewModelScope.launch {
             val now = System.currentTimeMillis()
             val status = if (bought) WishStatus.BOUGHT else WishStatus.SKIPPED
-            database.wishDao().update(current.copy(status = status, decidedAt = now))
+            // Once decided, the wish is never shown with its photo again - don't keep the screenshot.
+            WishImageStore.delete(getApplication(), current.imageUrl)
+            database.wishDao().update(current.copy(status = status, decidedAt = now, imageUrl = null))
             if (!bought) {
                 database.piggyBankDao().insert(
                     PiggyBankEntry(wishId = current.id, amount = current.price, timestamp = now)

@@ -9,11 +9,15 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.liam.kaptalismusaufhalter.MainActivity
 import com.liam.kaptalismusaufhalter.R
+import com.liam.kaptalismusaufhalter.security.IntentGuard
 
 object NotificationHelper {
     const val CHANNEL_ID = "wish_ready"
     const val UPDATE_CHANNEL_ID = "app_update"
+    const val SECURITY_CRITICAL_CHANNEL_ID = "security_critical"
+    const val SECURITY_INFO_CHANNEL_ID = "security_info"
     const val EXTRA_WISH_ID = "wish_id"
+    const val EXTRA_OPEN_SECURITY = "open_security"
     private const val UPDATE_NOTIFICATION_ID = 1_000_000
 
     fun ensureChannel(context: Context) {
@@ -38,6 +42,24 @@ object NotificationHelper {
                 description = context.getString(R.string.update_notification_channel_desc)
             }
         )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                SECURITY_CRITICAL_CHANNEL_ID,
+                "Sicherheitswarnungen",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Dringende Warnungen: neue Bildschirm-/Tastatur-Zugriffe, Angriffsversuche auf das Popup, abgelehnte Updates"
+            }
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                SECURITY_INFO_CHANNEL_ID,
+                "Sicherheitshinweise",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Weniger dringende Hinweise, z. B. wenn der Schutz ausgeschaltet wurde"
+            }
+        )
     }
 
     fun notifyWishReady(context: Context, wishId: Long, wishName: String) {
@@ -46,6 +68,7 @@ object NotificationHelper {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(EXTRA_WISH_ID, wishId)
+            putExtra(IntentGuard.EXTRA_NAV_TOKEN, IntentGuard.tokenFor(context))
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -72,6 +95,7 @@ object NotificationHelper {
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(IntentGuard.EXTRA_NAV_TOKEN, IntentGuard.tokenFor(context))
         }
         val pendingIntent = PendingIntent.getActivity(
             context,

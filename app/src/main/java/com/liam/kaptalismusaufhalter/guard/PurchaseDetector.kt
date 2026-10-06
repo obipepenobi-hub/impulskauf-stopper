@@ -132,6 +132,7 @@ object PurchaseDetector {
 
         var hasBuyButton = false
         var pastPurchaseSection = false
+        var sawPasswordField = false
         val prices = mutableListOf<PricePoint>()
         val titleCandidates = mutableListOf<TitleCandidate>()
         var visited = 0
@@ -139,6 +140,13 @@ object PurchaseDetector {
         fun visit(node: AccessibilityNodeInfo?, depth: Int) {
             if (node == null || depth > MAX_DEPTH || visited >= MAX_NODES) return
             visited++
+
+            // Never read password fields - their content has no business in a price detector -
+            // and remember that this is a login-style screen, which is skipped entirely below.
+            if (node.isPassword) {
+                sawPasswordField = true
+                return
+            }
 
             val text = node.text?.toString() ?: node.contentDescription?.toString()
             if (!text.isNullOrBlank()) {
@@ -182,6 +190,10 @@ object PurchaseDetector {
 
         visit(root, 0)
 
+        // A screen with a password field is a login/registration form: never treat it as a
+        // purchase screen (and so never screenshot it - detect() returning null is what gates
+        // the capture in the accessibility service).
+        if (sawPasswordField) return null
         if (!hasBuyButton) return null
 
         val (bestPrice, bestTitle) = pickBestPair(

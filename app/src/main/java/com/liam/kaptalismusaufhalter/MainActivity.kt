@@ -1,9 +1,13 @@
 package com.liam.kaptalismusaufhalter
 
 import android.Manifest
+import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.View
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -30,8 +34,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.liam.kaptalismusaufhalter.security.IntentGuard
+import com.liam.kaptalismusaufhalter.security.SecurityGuard
+import com.liam.kaptalismusaufhalter.security.SecurityPrefs
 import com.liam.kaptalismusaufhalter.ui.components.BottomNavBar
 import com.liam.kaptalismusaufhalter.ui.navigation.AppNavGraph
 import com.liam.kaptalismusaufhalter.ui.navigation.Destination
@@ -49,11 +57,24 @@ class MainActivity : ComponentActivity() {
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* no-op either way */ }
 
+    private lateinit var securityPrefs: SecurityPrefs
+
+    // Route requested by one of this app's own notifications; consumed once by the nav host.
+    private var pendingRoute by mutableStateOf<String?>(null)
+
+    // Held in a field: SharedPreferences only keeps weak references to its listeners.
+    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+        applyScreenProtection()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        securityPrefs = SecurityPrefs(this)
+        hardenWindow()
         requestNotificationPermissionIfNeeded()
-
-        val initialWishId = intent.getLongExtra(NotificationHelper.EXTRA_WISH_ID, -1L).takeIf { it > 0 }
+        // After rotation / process recreation the nav back stack is restored by itself - handling
+        // the original launch intent again would push the same screen a second time.
+        if (savedInstanceState == null) handleLaunchIntent(intent)
 
         setContent {
             ImpulskaufTheme {
@@ -69,8 +90,12 @@ class MainActivity : ComponentActivity() {
                         BuildConfig.VERSION_NAME
                     )
                 }
-                LaunchedEffect(initialWishId) {
-                    initialWishId?.let { navController.navigate(Destination.Decision.route(it)) }
+                val route = pendingRoute
+                LaunchedEffect(route) {
+                    route?.let {
+                        navController.navigate(it)
+                        pendingRoute = null
+                    }
                 }
 
                 updateInfo?.let { info ->
@@ -141,6 +166,79 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleLaunchIntent(intent)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        securityPrefs.prefs.registerOnSharedPreferenceChangeListener(prefsListener)
+        applyScreenProtection()
+        // Quick check every time the app comes to the front - catches anything the background
+        // scan hasn't seen yet.
+        lifecycleScope.launch { SecurityGuard.scan(this@MainActivity) }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        securityPrefs.prefs.unregisterOnSharedPreferenceChangeListener(prefsListener)
+    }
+
+    /**
+     * This activity has to be exported (launcher), so any app can send it an intent. Extras that
+     * drive navigation are only honored when they carry the secret from this app's own
+     * notification PendingIntents - anything else is ignored (and reported if it clearly came
+     * from another app).
+     */
+    private fun handleLaunchIntent(intent: Intent) {
+        val wishId = intent.getLongExtra(NotificationHelper.EXTRA_WISH_ID, -1L).takeIf { it > 0 }
+        val openSecurity = intent.getBooleanExtra(NotificationHelper.EXTRA_OPEN_SECURITY, false)
+        if (wishId == null && !openSecurity) return
+
+        if (!IntentGuard.isTrusted(this, intent)) {
+            val caller = referrer?.authority
+            // Notifications posted by an older version of the app carry no token - those come from
+            // ourselves, so they are ignored quietly rather than reported as an attack.
+            if (caller != null && caller != packageName) SecurityGuard.reportUnexpectedLaunch(this, caller)
+            return
+        }
+        pendingRoute = when {
+            openSecurity -> Destination.Security.route
+            else -> Destination.Decision.route(wishId!!)
+        }
+    }
+
+    /**
+     * Locks the app window against the usual ways another app can attack it: tapjacking
+     * overlays, screenshots/screen recording and accessibility services reading its content.
+     */
+    private fun hardenWindow() {
+        window.decorView.filterTouchesWhenObscured = true
+        // Each extra measure is best effort and isolated: a missing permission or an OEM quirk in
+        // one of them must never be able to crash the app at launch.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            runCatching { window.setHideOverlayWindows(true) }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            runCatching { window.decorView.setAccessibilityDataSensitive(View.ACCESSIBILITY_DATA_SENSITIVE_YES) }
+        }
+        applyScreenProtection()
+    }
+
+    private fun applyScreenProtection() {
+        val protect = securityPrefs.screenProtection
+        if (protect) {
+            window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            runCatching { setRecentsScreenshotEnabled(!protect) }
         }
     }
 

@@ -8,8 +8,8 @@ import android.graphics.Rect
 import android.os.Build
 import android.view.Display
 import androidx.annotation.RequiresApi
+import com.liam.kaptalismusaufhalter.security.WishImageStore
 import kotlinx.coroutines.suspendCancellableCoroutine
-import java.io.File
 import kotlin.coroutines.resume
 
 /**
@@ -32,7 +32,8 @@ object ScreenshotCapture {
                         val hardwareBitmap = Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace)
                         result.hardwareBuffer.close()
                         val bitmap = hardwareBitmap?.copy(Bitmap.Config.ARGB_8888, false)
-                        if (cont.isActive) cont.resume(bitmap)
+                        hardwareBitmap?.recycle()
+                        if (cont.isActive) cont.resume(bitmap) else bitmap?.recycle()
                     }
 
                     override fun onFailure(errorCode: Int) {
@@ -50,7 +51,8 @@ object ScreenshotCapture {
      * text - cart/checkout rows commonly show a product thumbnail to one side of the title at
      * the same height, so a full-width band centered on the title's row tends to include it
      * regardless of the shop's exact layout. Falls back to the full screenshot when no bounds
-     * were found (e.g. the manual-entry fallback popup).
+     * were found (e.g. the manual-entry fallback popup). Takes ownership of [bitmap] and
+     * recycles it.
      */
     fun saveCropped(context: Context, bitmap: Bitmap, titleBounds: Rect?): String? {
         return try {
@@ -68,12 +70,19 @@ object ScreenshotCapture {
             if (target.width() <= 0 || target.height() <= 0) return null
 
             val cropped = Bitmap.createBitmap(bitmap, target.left, target.top, target.width(), target.height())
-            val dir = File(context.filesDir, "wish_images").apply { mkdirs() }
-            val file = File(dir, "wish_${System.currentTimeMillis()}.jpg")
-            file.outputStream().use { out -> cropped.compress(Bitmap.CompressFormat.JPEG, 85, out) }
-            file.absolutePath
+            val bytes = java.io.ByteArrayOutputStream().use { out ->
+                cropped.compress(Bitmap.CompressFormat.JPEG, 85, out)
+                out.toByteArray()
+            }
+            if (cropped !== bitmap) cropped.recycle()
+            // Encrypted, private-storage-only, never backed up - see WishImageStore.
+            WishImageStore.save(context, bytes)
         } catch (e: Exception) {
             null
+        } finally {
+            // The full-screen capture can contain anything on screen (banking, messages...) -
+            // drop it from memory as soon as the small crop is saved.
+            bitmap.recycle()
         }
     }
 }

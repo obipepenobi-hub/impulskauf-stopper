@@ -1,6 +1,5 @@
 package com.liam.kaptalismusaufhalter.ui.screens.reift
 
-import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -40,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.liam.kaptalismusaufhalter.security.WishImageStore
 import com.liam.kaptalismusaufhalter.data.Wish
 import com.liam.kaptalismusaufhalter.domain.calcWorkHours
 import com.liam.kaptalismusaufhalter.ui.components.formatCurrency
@@ -124,10 +124,11 @@ private fun ReiftItemCard(wish: Wish, hourlyWage: Double, onClick: () -> Unit, o
     val shopLabel = shopLabelFor(wish.linkUrl)
 
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    val imageContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
     var thumbnail by remember(wish.imageUrl) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
     LaunchedEffect(wish.imageUrl) {
         thumbnail = wish.imageUrl?.let { path ->
-            withContext(Dispatchers.IO) { BitmapFactory.decodeFile(path)?.asImageBitmap() }
+            withContext(Dispatchers.IO) { WishImageStore.decode(imageContext, path)?.asImageBitmap() }
         }
     }
 

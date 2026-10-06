@@ -29,9 +29,11 @@ class PurchaseDetectorRealScreensTest {
         contentDescription: String? = null,
         clickable: Boolean = false,
         bounds: Rect? = null,
+        password: Boolean = false,
         children: List<AccessibilityNodeInfo> = emptyList()
     ): AccessibilityNodeInfo {
         val info = AccessibilityNodeInfo.obtain()
+        info.isPassword = password
         text?.let { info.text = it }
         contentDescription?.let { info.contentDescription = it }
         info.isClickable = clickable
@@ -317,5 +319,29 @@ class PurchaseDetectorRealScreensTest {
             signal?.title?.startsWith("iPad Air") == true
         )
         assertEquals(390.00, signal?.price)
+    }
+
+    @Test
+    fun `never treats a screen with a password field as a purchase screen`() {
+        // Same valid cart as the Amazon test, plus a password field somewhere on screen: that is a
+        // login/registration form, so nothing may be detected (and therefore nothing screenshotted).
+        val root = node(children = listOf(
+            node(text = realTitle, bounds = row(200, height = 60)),
+            node(text = "39,99 €", bounds = row(280)),
+            node(text = "Zur Kasse gehen", clickable = true, bounds = row(340)),
+            node(text = "geheim123", password = true, bounds = row(400))
+        ))
+
+        assertTrue(PurchaseDetector.detect(root) == null)
+    }
+
+    @Test
+    fun `password text is never read even if the screen would otherwise match`() {
+        val withPassword = node(children = listOf(
+            node(text = "Zur Kasse gehen", clickable = true, bounds = row(100)),
+            node(text = "99,99 €", password = true, bounds = row(160))
+        ))
+
+        assertTrue(PurchaseDetector.detect(withPassword) == null)
     }
 }

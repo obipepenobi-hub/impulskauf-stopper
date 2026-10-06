@@ -1,6 +1,5 @@
 package com.liam.kaptalismusaufhalter.ui.screens.decision
 
-import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,6 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.liam.kaptalismusaufhalter.security.WishImageStore
 import com.liam.kaptalismusaufhalter.domain.calcWorkHours
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -76,10 +76,11 @@ fun DecisionScreen(
         (System.currentTimeMillis() - current.createdAt).coerceAtLeast(0)
     ).coerceAtLeast(1)
 
+    val imageContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
     var thumbnail by remember(current.imageUrl) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
     LaunchedEffect(current.imageUrl) {
         thumbnail = current.imageUrl?.let { path ->
-            withContext(Dispatchers.IO) { BitmapFactory.decodeFile(path)?.asImageBitmap() }
+            withContext(Dispatchers.IO) { WishImageStore.decode(imageContext, path)?.asImageBitmap() }
         }
     }
 

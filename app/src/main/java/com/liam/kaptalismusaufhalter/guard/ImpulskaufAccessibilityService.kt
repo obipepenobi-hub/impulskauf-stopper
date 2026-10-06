@@ -7,6 +7,9 @@ import android.provider.Settings
 import android.view.accessibility.AccessibilityEvent
 import androidx.core.content.ContextCompat
 import com.liam.kaptalismusaufhalter.ImpulskaufApp
+import com.liam.kaptalismusaufhalter.security.SecurityMonitor
+import com.liam.kaptalismusaufhalter.security.SecurityPrefs
+import com.liam.kaptalismusaufhalter.security.WishImageStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -17,6 +20,7 @@ class ImpulskaufAccessibilityService : AccessibilityService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private lateinit var overlay: OverlayController
+    private var securityMonitor: SecurityMonitor? = null
 
     private var lastEventAt = 0L
     private val cooldownUntil = HashMap<String, Long>()
@@ -24,6 +28,9 @@ class ImpulskaufAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         overlay = OverlayController(this)
+        // Warns the moment another app gets screen/keyboard/notification access - see SecurityMonitor.
+        securityMonitor?.stop()
+        securityMonitor = SecurityMonitor(applicationContext, scope).also { it.start() }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -54,7 +61,7 @@ class ImpulskaufAccessibilityService : AccessibilityService() {
             // trying to pull a specific ImageView out of the accessibility tree (no general API
             // for that). Only available from Android 11 (API 30) - older devices just get no
             // photo, same as a manually entered wish.
-            val imagePath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val imagePath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && SecurityPrefs(applicationContext).capturePhotos) {
                 ScreenshotCapture.capture(this@ImpulskaufAccessibilityService)?.let { bitmap ->
                     ScreenshotCapture.saveCropped(applicationContext, bitmap, signal.titleBounds)
                 }
@@ -67,18 +74,33 @@ class ImpulskaufAccessibilityService : AccessibilityService() {
     }
 
     private fun showOverlay(packageName: String, detectedPrice: Double?, detectedTitle: String?, imagePath: String?) {
-        if (!Settings.canDrawOverlays(this)) return
-        if (overlay.isShowing()) return
+        if (!Settings.canDrawOverlays(this) || overlay.isShowing()) {
+            // Nothing will ever reference the photo that was just taken - don't leave it behind.
+            WishImageStore.delete(applicationContext, imagePath)
+            return
+        }
 
         val appLabel = resolveAppLabel(packageName)
 
-        overlay.show { dismiss ->
+        // Once "Warten lassen" was tapped the photo belongs to the new wish and must survive.
+        var keptForWish = false
+        val leaveWithoutWish = {
+            if (!keptForWish) WishImageStore.delete(applicationContext, imagePath)
+            cooldownUntil[packageName] = System.currentTimeMillis() + COOLDOWN_MS
+        }
+
+        overlay.show(onBackPressed = {
+            // Back == the X: a false-positive trigger closed this way shouldn't pop up again at once.
+            leaveWithoutWish()
+            overlay.hide()
+        }) { dismiss ->
             ImpulsPopupOverlay(
                 detectedPrice = detectedPrice,
                 detectedTitle = detectedTitle,
                 imagePath = imagePath,
                 sourceAppLabel = appLabel,
                 onRipen = { name, price ->
+                    keptForWish = true
                     scope.launch {
                         (applicationContext as ImpulskaufApp).wishRepository.createWish(name, price, imageUrl = imagePath)
                         withMain {
@@ -88,15 +110,13 @@ class ImpulskaufAccessibilityService : AccessibilityService() {
                     }
                 },
                 onBuyAnyway = {
-                    imagePath?.let { java.io.File(it).delete() }
-                    cooldownUntil[packageName] = System.currentTimeMillis() + COOLDOWN_MS
+                    leaveWithoutWish()
                     dismiss()
                 },
                 onClose = {
                     // Treated like "trotzdem kaufen" for cooldown purposes - a false-positive
                     // trigger closed via the X shouldn't immediately pop up again on the same screen.
-                    imagePath?.let { java.io.File(it).delete() }
-                    cooldownUntil[packageName] = System.currentTimeMillis() + COOLDOWN_MS
+                    leaveWithoutWish()
                     dismiss()
                 }
             )
@@ -119,6 +139,7 @@ class ImpulskaufAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        securityMonitor?.stop()
         if (::overlay.isInitialized) overlay.hide()
         scope.cancel()
     }

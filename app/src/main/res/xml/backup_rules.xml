@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
+    <!-- Only the database is backed up. Everything else - notably the product screenshots in
+         files/wish_images - is implicitly left out, so cropped screens from other apps never
+         end up in a backup. -->
     <include domain="database" path="." />
 </full-backup-content>

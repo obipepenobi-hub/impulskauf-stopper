@@ -47,6 +47,8 @@ import com.liam.kaptalismusaufhalter.data.toWaitTiers
 import com.liam.kaptalismusaufhalter.domain.PIGGY_STAGES
 import com.liam.kaptalismusaufhalter.domain.calcWaitHours
 import com.liam.kaptalismusaufhalter.guard.ImpulskaufAccessibilityService
+import com.liam.kaptalismusaufhalter.security.SecurityLog
+import com.liam.kaptalismusaufhalter.security.SecurityPrefs
 import com.liam.kaptalismusaufhalter.ui.components.BackHeader
 import com.liam.kaptalismusaufhalter.ui.components.formatCurrency
 import com.liam.kaptalismusaufhalter.ui.components.formatWaitLabel
@@ -64,12 +66,15 @@ import com.liam.kaptalismusaufhalter.update.UpdateAvailableDialog
 import com.liam.kaptalismusaufhalter.update.UpdateChecker
 import com.liam.kaptalismusaufhalter.update.UpdateInfo
 import com.liam.kaptalismusaufhalter.update.UpdateInstaller
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
     onExcludedAppsClick: () -> Unit,
+    onSecurityClick: () -> Unit,
     viewModel: SettingsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -99,6 +104,8 @@ fun SettingsScreen(
     // this screen comes back to the foreground instead of only once on first composition.
     var accessibilityEnabled by remember { mutableStateOf(ImpulskaufAccessibilityService.isEnabled(context)) }
     var overlayGranted by remember { mutableStateOf(AndroidSettings.canDrawOverlays(context)) }
+    var unseenSecurityEvents by remember { mutableStateOf(0) }
+    var resumeTick by remember { mutableStateOf(0) }
     var showAccessibilityExplainer by remember { mutableStateOf(false) }
     var showOverlayExplainer by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -107,10 +114,17 @@ fun SettingsScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 accessibilityEnabled = ImpulskaufAccessibilityService.isEnabled(context)
                 overlayGranted = AndroidSettings.canDrawOverlays(context)
+                resumeTick++
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(resumeTick) {
+        unseenSecurityEvents = withContext(Dispatchers.IO) {
+            SecurityLog(context).unseenCount(SecurityPrefs(context).lastSeenEventAt)
+        }
     }
 
     updateInfo?.let { info ->
@@ -250,6 +264,38 @@ fun SettingsScreen(
                     modifier = Modifier
                         .clickable(onClick = onExcludedAppsClick)
                         .padding(top = 4.dp)
+                )
+            }
+        }
+
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ColorSurface, RoundedCornerShape(26.dp))
+                    .clickable(onClick = onSecurityClick)
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Sicherheit & Warnungen", style = TextStyle(fontFamily = HeadingFont, fontSize = 16.sp))
+                    if (unseenSecurityEvents > 0) {
+                        Text(
+                            "$unseenSecurityEvents neu",
+                            style = TextStyle(fontFamily = HeadingFont, fontSize = 14.sp),
+                            color = ColorAccent
+                        )
+                    }
+                }
+                Text(
+                    "Screenshot-Schutz, Warnung bei verdächtigen Apps (z. B. neuer Bildschirm-Zugriff) " +
+                        "und das Sicherheitsprotokoll.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ColorNeutral700
                 )
             }
         }

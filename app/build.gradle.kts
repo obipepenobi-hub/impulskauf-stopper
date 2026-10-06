@@ -74,6 +74,17 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    testOptions {
+        unitTests {
+            // Lets Robolectric tests use the app's own string resources (notifications etc.).
+            isIncludeAndroidResources = true
+            // Robolectric creates a fresh Application per test inside one JVM, but Compose, the
+            // Room singleton and WorkManager keep process-wide state. One JVM per test class keeps
+            // the Compose UI tests from tripping over leftovers of unrelated classes.
+            all { it.forkEvery = 1 }
+        }
+    }
 }
 
 dependencies {
@@ -107,6 +118,8 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.13")
     testImplementation("androidx.test:core:1.6.1")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("androidx.work:work-testing:2.9.0")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
