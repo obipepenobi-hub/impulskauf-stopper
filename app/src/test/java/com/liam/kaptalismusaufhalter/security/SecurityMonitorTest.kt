@@ -79,15 +79,16 @@ class SecurityMonitorTest {
 
         monitor.start()
 
-        awaitUntil { SecurityPrefs(context).loadGuardState().initialized }
-        assertTrue(SecurityPrefs(context).lastScanAt > 0)
+        // lastScanAt is written last, so it marks a finished scan (guard state is saved before it)
+        awaitUntil { SecurityPrefs(context).lastScanAt > 0 }
+        assertTrue(SecurityPrefs(context).loadGuardState().initialized)
     }
 
     @Test
     fun `a change of the enabled accessibility services triggers a scan and a warning`() {
         enable(service("com.google.android.marvin.talkback", "TalkBack", 0x01, ApplicationInfo.FLAG_SYSTEM))
         monitor.start()
-        awaitUntil { SecurityPrefs(context).loadGuardState().initialized }
+        awaitUntil { SecurityPrefs(context).lastScanAt > 0 }
         assertTrue(SecurityLog(context).all().isEmpty())
 
         // a trojan gets switched on: the system setting changes and the service list now includes it
@@ -111,7 +112,7 @@ class SecurityMonitorTest {
     fun `after stopping, settings changes are no longer watched`() {
         enable(service("com.google.android.marvin.talkback", "TalkBack", 0x01, ApplicationInfo.FLAG_SYSTEM))
         monitor.start()
-        awaitUntil { SecurityPrefs(context).loadGuardState().initialized }
+        awaitUntil { SecurityPrefs(context).lastScanAt > 0 }
         monitor.stop()
 
         enable(service("com.evil.flashlight", "Taschenlampe Pro", 0x81))

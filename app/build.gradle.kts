@@ -45,7 +45,12 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("shared")
+            // The release workflow passes -PunsignedRelease=true and signs the APK itself with the
+            // private release key + key-rotation lineage (scripts/sign-release.sh). Local builds
+            // keep the shared key so they stay installable as before.
+            if (project.findProperty("unsignedRelease") != "true") {
+                signingConfig = signingConfigs.getByName("shared")
+            }
         }
         debug {
             applicationIdSuffix = ".debug"
@@ -82,7 +87,10 @@ android {
             // Robolectric creates a fresh Application per test inside one JVM, but Compose, the
             // Room singleton and WorkManager keep process-wide state. One JVM per test class keeps
             // the Compose UI tests from tripping over leftovers of unrelated classes.
-            all { it.forkEvery = 1 }
+            all {
+                it.forkEvery = 1
+                it.maxHeapSize = "1g"
+            }
         }
     }
 }

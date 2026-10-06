@@ -6,14 +6,21 @@ on:
   pull_request:
     branches: [main]
 
+# Read-only token: CI only builds and tests, it never needs to write to the repository.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      # Third-party actions are pinned to a commit hash (the comment names the version it was
+      # taken from): a tag like "v4" can be moved afterwards, a commit hash cannot.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
           java-version: "17"
@@ -26,11 +33,30 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      # Robolectric downloads a ~150 MB Android framework jar per SDK level on first use.
+      - name: Cache Robolectric Android jars
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ hashFiles('app/build.gradle.kts') }}
+          restore-keys: robolectric-
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Upload test report (failures only)
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-report
+          path: app/build/reports/tests/
+          retention-days: 7
+
       - name: Assemble debug APK
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: debug-apk
           path: app/build/outputs/apk/debug/*.apk
