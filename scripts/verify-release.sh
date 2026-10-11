@@ -47,12 +47,15 @@ run_verify() {
 # level $1. A rotated APK is listed with one block per SDK range:
 #   build-tools 34-36:  "Signer (minSdkVersion=X, maxSdkVersion=Y) certificate SHA-256 digest: ..."
 #   build-tools 37:     "V3.1 Signer: (minSdkVersion=X, maxSdkVersion=Y) certificate SHA-256 digest: ..."
-# A verification limited to a range with a single signer is listed as
-# "Signer #1 certificate SHA-256 digest: ...".
+# A verification limited to a range (--min/--max-sdk-version) only lists the signers of that range,
+# without an SDK range in the label:
+#   build-tools 34-36:  "Signer #1 certificate SHA-256 digest: ..."
+#   build-tools 37:     "V3.0 Signer: certificate SHA-256 digest: ..."
+# so every certificate digest line without a range counts there.
 signer_digests() {
   local sdk="$1" line ranged_seen=0
   local ranged_re='^(V[0-9.]+ )?Signer:? \(minSdkVersion=([0-9]+), maxSdkVersion=([0-9]+)[^)]*\) certificate SHA-256 digest: ([0-9a-fA-F]{64})$'
-  local plain_re='^Signer #[0-9]+ certificate SHA-256 digest: ([0-9a-fA-F]{64})$'
+  local plain_re='^(V[0-9.]+ )?Signer[^(]* certificate SHA-256 digest: ([0-9a-fA-F]{64})$'
   local -a ranged=() plain=()
   while IFS= read -r line; do
     if [[ "$line" =~ $ranged_re ]]; then
@@ -61,7 +64,7 @@ signer_digests() {
         ranged+=("${BASH_REMATCH[4],,}")
       fi
     elif [[ "$line" =~ $plain_re ]]; then
-      plain+=("${BASH_REMATCH[1],,}")
+      plain+=("${BASH_REMATCH[2],,}")
     fi
   done <<< "$output"
   if (( ranged_seen )); then
