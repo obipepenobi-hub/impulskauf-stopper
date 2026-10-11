@@ -44,19 +44,21 @@ run_verify() {
 }
 
 # Prints the SHA-256 digests of the signing certificates in $output that apply on Android API
-# level $1. A rotated APK is listed as "Signer (minSdkVersion=X, maxSdkVersion=Y...) certificate
-# SHA-256 digest: ..." with one block per SDK range; a verification limited to a range with a
-# single signer is listed as "Signer #1 certificate SHA-256 digest: ...".
+# level $1. A rotated APK is listed with one block per SDK range:
+#   build-tools 34-36:  "Signer (minSdkVersion=X, maxSdkVersion=Y) certificate SHA-256 digest: ..."
+#   build-tools 37:     "V3.1 Signer: (minSdkVersion=X, maxSdkVersion=Y) certificate SHA-256 digest: ..."
+# A verification limited to a range with a single signer is listed as
+# "Signer #1 certificate SHA-256 digest: ...".
 signer_digests() {
   local sdk="$1" line ranged_seen=0
-  local ranged_re='^Signer \(minSdkVersion=([0-9]+), maxSdkVersion=([0-9]+)[^)]*\) certificate SHA-256 digest: ([0-9a-fA-F]{64})$'
+  local ranged_re='^(V[0-9.]+ )?Signer:? \(minSdkVersion=([0-9]+), maxSdkVersion=([0-9]+)[^)]*\) certificate SHA-256 digest: ([0-9a-fA-F]{64})$'
   local plain_re='^Signer #[0-9]+ certificate SHA-256 digest: ([0-9a-fA-F]{64})$'
   local -a ranged=() plain=()
   while IFS= read -r line; do
     if [[ "$line" =~ $ranged_re ]]; then
       ranged_seen=1
-      if (( BASH_REMATCH[1] <= sdk && sdk <= BASH_REMATCH[2] )); then
-        ranged+=("${BASH_REMATCH[3],,}")
+      if (( BASH_REMATCH[2] <= sdk && sdk <= BASH_REMATCH[3] )); then
+        ranged+=("${BASH_REMATCH[4],,}")
       fi
     elif [[ "$line" =~ $plain_re ]]; then
       plain+=("${BASH_REMATCH[1],,}")
