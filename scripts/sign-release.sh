@@ -20,21 +20,24 @@ out_apk="${2:?usage: sign-release.sh <unsigned.apk> <signed-output.apk>}"
 export RELEASE_KEYSTORE_PASSWORD
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-build_tools="$(ls -d "${ANDROID_HOME:?ANDROID_HOME is not set}/build-tools/"* | sort -V | tail -1)"
-apksigner="${APKSIGNER:-$build_tools/apksigner}"
-zipalign="${ZIPALIGN:-$build_tools/zipalign}"
+source "$repo_root/scripts/android-build-tools.sh"
 
 aligned="$(mktemp -u)-aligned.apk"
 trap 'rm -f "$aligned" "$out_apk.idsig"' EXIT
 
 "$zipalign" -p -f 4 "$in_apk" "$aligned"
 
+# The first signer is the OLD key (needed for the v2 signature on Android 8 and for the v3 block of
+# Android 9-12), the second one the NEW key. --rotation-min-sdk-version 33 is apksigner's default
+# (the v3.1 block, Android 13+); it is passed explicitly so a different default in some future
+# apksigner cannot silently change which Android versions get the new key.
 "$apksigner" sign \
   --ks "$repo_root/keystore/shared-debug.keystore" --ks-key-alias androiddebugkey --ks-pass pass:android \
   --next-signer \
   --ks "$RELEASE_KEYSTORE_FILE" --ks-key-alias "${RELEASE_KEY_ALIAS:-impulskauf}" --ks-pass env:RELEASE_KEYSTORE_PASSWORD \
   --lineage "$repo_root/keystore/lineage.bin" \
   --min-sdk-version 26 \
+  --rotation-min-sdk-version 33 \
   --v4-signing-enabled false \
   --out "$out_apk" "$aligned"
 

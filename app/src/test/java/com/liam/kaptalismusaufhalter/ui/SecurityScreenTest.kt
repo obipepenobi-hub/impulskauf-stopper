@@ -185,7 +185,8 @@ class SecurityScreenTest {
 
         scrollTo("Als vertrauenswürdig markieren")
         compose.onNodeWithText("Als vertrauenswürdig markieren").performClick()
-        compose.waitForIdle()
+        // the list is rebuilt on an IO thread, which waitForIdle() does not wait for
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("vertraut").fetchSemanticsNodes().isNotEmpty() }
 
         compose.onNodeWithText("vertraut").assertExists()
         assertTrue(
@@ -212,7 +213,10 @@ class SecurityScreenTest {
 
         scrollTo("Löschen")
         compose.onNodeWithText("Löschen").performClick()
-        compose.waitForIdle()
+        // the list is rebuilt on an IO thread, which waitForIdle() does not wait for
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithText("Keine Auffälligkeiten aufgezeichnet.").fetchSemanticsNodes().isNotEmpty()
+        }
 
         assertTrue(SecurityLog(context).all().isEmpty())
         compose.onNodeWithText("Keine Auffälligkeiten aufgezeichnet.").assertExists()

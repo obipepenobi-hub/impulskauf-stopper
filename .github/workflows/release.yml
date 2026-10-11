@@ -12,6 +12,10 @@ on:
         description: "Dry-run version (x.y.z). Builds and signs, but publishes nothing."
         required: true
         default: "0.0.1"
+      build_tools:
+        description: "Android build-tools to sign with, e.g. 37.0.0 (empty = the version pinned in scripts/android-build-tools.sh)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -86,6 +90,8 @@ jobs:
         env:
           RELEASE_KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          # only set by hand on a dry run; validated by scripts/android-build-tools.sh
+          BUILD_TOOLS_VERSION: ${{ inputs.build_tools }}
         run: |
           if [ -z "$RELEASE_KEYSTORE_B64" ] || [ -z "$RELEASE_KEYSTORE_PASSWORD" ]; then
             echo "::error::the release signing secrets (RELEASE_KEYSTORE_B64, RELEASE_KEYSTORE_PASSWORD) are not set"
